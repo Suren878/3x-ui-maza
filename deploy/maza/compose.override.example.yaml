@@ -1,0 +1,38 @@
+# Merge into an existing Compose project whose panel service is named "panel".
+# Keep its existing database/bin volumes and security settings.
+services:
+  panel:
+    image: local/3x-ui-maza:3.11.0-maza1
+    environment:
+      MAZA_ORIGIN: ${MAZA_ORIGIN:?Set the public HTTPS origin}
+      MAZA_SERVER_ADDRESS: ${MAZA_SERVER_ADDRESS:-}
+    ports:
+      - "127.0.0.1:19443:9443/tcp"
+  maza:
+    image: local/maza-relay:0.1.0-panel1
+    network_mode: service:panel
+    depends_on:
+      panel:
+        condition: service_started
+    user: "10002:10002"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    volumes:
+      - ${PANEL_DATA_DIR:?Set the existing panel database directory}/maza/relay:/config:ro
+      - ${MAZA_CERT_DIR:?Set this deployment's certificate directory}:/cert:ro
+    restart: unless-stopped
+    mem_limit: 128m
+    pids_limit: 64
+    stop_grace_period: 10s
+    healthcheck:
+      test: [CMD, maza-server, --config, /config/server.toml, --check]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

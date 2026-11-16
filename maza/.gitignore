@@ -1,0 +1,5 @@
+/target/
+/local/
+
+# The panel fork ignores directories named bin; these are Rust source files.
+!/src/bin/

@@ -110,6 +110,7 @@
     "saveQr": "Save QR"
   },
   "menu": {
+    "maza": "MAZA",
     "theme": "Theme",
     "dashboard": "Overview",
     "inbounds": "Inbounds",
