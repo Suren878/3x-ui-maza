@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Button, Card, Input, Modal, Popconfirm, QRCode, Space, Table, Tag, Typography, Switch } from 'antd';
 import { HttpUtil } from '@/utils';
+import { createMazaClient } from './createClient';
 
 type Client = { id: string; name: string; address: string; created: number; enabled: boolean };
 type Status = { clients: Client[]; origin: string; pending: boolean; limit: number };
@@ -20,7 +21,12 @@ export default function MazaPage() {
   useEffect(() => { void refresh(); const timer = setInterval(() => void refresh(), 5000); return () => clearInterval(timer); }, []);
   async function create() {
     setBusy(true);
-    try { const r = await HttpUtil.post(`${api}/clients`, { name }, { headers: { 'Content-Type': 'application/json' } }); if (r.success) setName(''); await refresh(); }
+    try {
+      const result = await createMazaClient(name.trim());
+      if (result.success) setName('');
+      await refresh();
+      if (!result.success) setError(result.msg || 'Не удалось создать клиента MAZA.');
+    }
     finally { setBusy(false); }
   }
   async function remove(id: string) {

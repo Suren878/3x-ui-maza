@@ -4,7 +4,7 @@ COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --ignore-scripts
 COPY frontend/ ./
 COPY internal/web/translation /src/internal/web/translation
-RUN npm run typecheck && npm run test -- src/test/wireguard-client-config.test.ts && npm run build
+RUN npm run typecheck && npm run test -- src/test/wireguard-client-config.test.ts src/test/maza-create-client.test.ts && npm run build
 
 FROM golang:1.27.4-alpine AS builder
 RUN apk add --no-cache build-base git

@@ -228,6 +228,39 @@ func TestMazaPendingActivationDoesNotExportCredentials(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+func TestMazaQueuedCreationSurvivesReplyAndActivationFailure(t *testing.T) {
+	s := nativeMaza(t)
+	activated := 0
+	s.activate = func() error { activated++; return errors.New("core unavailable") }
+	if err := s.QueueClient(1, "Queued Mac", "queued-mac"); err != nil {
+		t.Fatal(err)
+	}
+	if activated != 0 || !s.pending {
+		t.Fatal("creation restarted the core before its HTTP response")
+	}
+	data, err := os.ReadFile(filepath.Join(s.dir, "state.json"))
+	var persisted mazaState
+	if err != nil || json.Unmarshal(data, &persisted) != nil || len(persisted.Clients) != 1 {
+		t.Fatal("accepted client was not durable")
+	}
+	if _, _, err := s.Export(1, persisted.Clients[0].ID); err == nil {
+		t.Fatal("exported a pending client")
+	}
+	if err := s.QueueClient(1, "Queued Mac", "queued-mac"); err == nil || len(s.state.Clients) != 1 {
+		t.Fatal("retry duplicated the pending client")
+	}
+	if err := s.apply(); err == nil || !s.pending {
+		t.Fatal("activation failure lost the queued change")
+	}
+	s.activate = func() error { return nil }
+	if err := s.apply(); err != nil || s.pending || mazaPeerCount(t) != 1 {
+		t.Fatal("queued client was not applied on retry", err)
+	}
+	if _, _, err := s.Export(1, persisted.Clients[0].ID); err != nil {
+		t.Fatal("applied client cannot be exported", err)
+	}
+}
+
 func TestMazaPreservesOrdinaryPeer(t *testing.T) {
 	s := nativeMaza(t)
 	if err := s.Initialize(1); err != nil {

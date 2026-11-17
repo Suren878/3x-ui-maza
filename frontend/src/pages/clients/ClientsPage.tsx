@@ -1933,6 +1933,7 @@ export default function ClientsPage() {
             tgBotEnable={tgBotEnable}
             groups={allGroups}
             save={onSave}
+            onMazaCreated={() => { void refresh(); }}
             resetTraffic={resetTraffic}
             onOpenChange={setFormOpen}
           />

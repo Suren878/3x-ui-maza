@@ -497,6 +497,17 @@ func (s *MazaService) Create(user int, name string) error {
 }
 
 func (s *MazaService) CreateWithEmail(user int, name, email string) error {
+	return s.createWithEmail(user, name, email, false)
+}
+
+// QueueClient persists the client before replying to an administrator who may
+// be using this VPN. The existing reconciler applies it outside the HTTP request;
+// changing Xray's SOCKS account list can restart the core and break that request.
+func (s *MazaService) QueueClient(user int, name, email string) error {
+	return s.createWithEmail(user, name, email, true)
+}
+
+func (s *MazaService) createWithEmail(user int, name, email string, queued bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !s.allowed(user) || user <= 0 {
@@ -588,6 +599,9 @@ func (s *MazaService) CreateWithEmail(user int, name, email string) error {
 		return err
 	}
 	s.pending = true
+	if queued {
+		return nil
+	}
 	if err := s.apply(); err != nil {
 		return errors.New("client saved; backend update is pending, refresh status before export")
 	}

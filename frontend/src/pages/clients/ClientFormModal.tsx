@@ -32,6 +32,7 @@ import type { Dayjs } from 'dayjs';
 import { Controller, FormProvider, useForm, useWatch, useFieldArray } from 'react-hook-form';
 
 import { HttpUtil, IntlUtil, RandomUtil, Wireguard } from '@/utils';
+import { createMazaClient } from '@/pages/maza/createClient';
 import { formatInboundLabel } from '@/lib/inbounds/label';
 import { generateMtprotoSecret } from '@/lib/xray/inbound-defaults';
 import { normalizeClientIps, type ClientIpInfo } from '@/lib/clients/ip-log';
@@ -724,8 +725,12 @@ export default function ClientFormModal({
       if (!name) { messageApi.error('Введите имя клиента.'); return; }
       setSubmitting(true);
       try {
-        const msg = await HttpUtil.post('/panel/maza/api/clients', { name, email: name }, { headers: { 'Content-Type': 'application/json' } });
-        if (msg.success) { onMazaCreated?.(); close(); }
+        const result = await createMazaClient(name, name);
+        if (result.success) {
+          if (result.pending) messageApi.warning(result.msg);
+          onMazaCreated?.();
+          close();
+        } else messageApi.error(result.msg);
       } finally { setSubmitting(false); }
       return;
     }

@@ -47,7 +47,11 @@ func registerMaza(g *gin.RouterGroup) {
 			c.JSON(400, gin.H{"success": false, "msg": "Invalid request"})
 			return
 		}
-		jsonMsg(c, "", s.CreateWithEmail(session.GetLoginUser(c).Id, req.Name, req.Email))
+		if err := s.QueueClient(session.GetLoginUser(c).Id, req.Name, req.Email); err != nil {
+			jsonMsg(c, "", err)
+			return
+		}
+		c.JSON(http.StatusAccepted, gin.H{"success": true, "obj": gin.H{"pending": true}})
 	})
 	m.POST("/clients/:id/enable", func(c *gin.Context) {
 		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 512)

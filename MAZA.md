@@ -16,6 +16,8 @@ client dialog or MAZA page. QR, link and ZIP exports are available. Import the l
 or `profile.json` into AIRClient 0.3.2 (15)+. Profiles are v2; ordinary WireGuard QR
 codes are not offered for the managed inbound. Its native settings are managed by
 MAZA rather than the generic AWG editor. Disable/revoke clients on the MAZA page.
+Use one client profile per device; sharing a live profile between devices makes
+the peer roam between their endpoints and can interrupt both connections.
 
 The session and CSRF middleware protect all MAZA API operations. Exports are
 `Cache-Control: no-store`; listings omit keys. State and ZIP entries use mode 0600.
@@ -24,6 +26,13 @@ pending, are retried, and block exports until applied. The interface supports up
 to 64 managed clients. Header protection parameters are shared by clients of this
 inbound; a leaked profile must be treated as a compromise of that shared disguise.
 Individual WireGuard peer keys still control tunnel authentication.
+
+Client creation returns HTTP 202 after durable storage. The existing reconciler
+then applies it, and exports stay unavailable while `pending` is true. The UI
+waits for readiness and recovers a lost response by reading the client list,
+without repeating the creation request. This matters when the administrator
+opens the panel through this VPN: updating Xray's authenticated SOCKS account
+list currently restarts Xray and may briefly interrupt that connection.
 
 ## Build and validate
 

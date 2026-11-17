@@ -18,7 +18,12 @@ def req(path,data=None,auth=True,csrf=True):
 
 def api(path,data=None):
  code,h,b=req(path,data);v=json.loads(b)
- if code!=200 or not v.get('success'):raise RuntimeError('API failed '+path+': '+str(v.get('msg',code)))
+ if code not in (200,202) or not v.get('success'):raise RuntimeError('API failed '+path+': '+str(v.get('msg',code)))
+ if code==202:
+  for _ in range(40):
+   if not api('/panel/maza/api/clients')['pending']:break
+   time.sleep(.5)
+  else:raise RuntimeError('accepted client remains pending')
  return v.get('obj')
 route='/panel/maza/api/clients'
 token=api('/csrf-token')
