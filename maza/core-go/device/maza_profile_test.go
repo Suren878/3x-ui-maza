@@ -2,8 +2,41 @@ package device
 
 import (
 	"encoding/base64"
+	"strconv"
 	"testing"
 )
+
+func TestMazaPathMTUBoundsPaddingAndTrailers(t *testing.T) {
+	p, err := GenerateMazaParameters()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for s4 := 12; s4 <= 192; s4++ {
+		p["s4"] = strconv.Itoa(s4)
+		mtu, err := MazaInnerMTU(p)
+		if err != nil || mtu+s4+MinMessageSize+48 != 1280 {
+			t.Fatalf("bad inner MTU for S4=%d: %d, %v", s4, mtu, err)
+		}
+		d := new(Device)
+		d.tun.mtu.Store(int32(mtu))
+		d.paddings.transport.Store(uint32(s4))
+		d.randomTrailers.Store(true)
+		var addition UintRange
+		addition.FromUint32(32, 192)
+		d.contentPaddingAddition.Store(addition)
+		peer := &Peer{device: d}
+		peer.udpWindow.Store(65535) // Older client or a previous, larger path.
+		for _, size := range []int{0, 148, 1200, 1231, 1232, 1400} {
+			for i := 0; i < 100; i++ {
+				for _, pad := range []int{peer.randomPaddingAddition(size), peer.randomTrailer(size), d.randomTrailer(size)} {
+					if pad < 0 || pad > max(1232-size, 0) {
+						t.Fatalf("S4=%d size=%d padding=%d exceeds path", s4, size, pad)
+					}
+				}
+			}
+		}
+	}
+}
 
 func TestMazaGeneratedProfiles(t *testing.T) {
 	var previous string

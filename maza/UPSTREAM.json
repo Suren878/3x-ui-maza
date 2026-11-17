@@ -9,6 +9,7 @@
     "mandatory MAZA profile generator and validation",
     "panel module uses local source replacement",
     "prioritize transport classification with random trailers to avoid ciphertext/handshake collisions",
-    "generate equal short S1-S4 prefixes for unambiguous classification"
+    "generate equal short S1-S4 prefixes for unambiguous classification",
+    "derive MAZA inner MTU from encapsulation overhead and cap padding despite learned UDP windows"
   ]
 }

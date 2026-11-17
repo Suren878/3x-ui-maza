@@ -116,6 +116,18 @@ func TestMazaNativeProvisionExportRevoke(t *testing.T) {
 	if err := mazacore.ValidateMazaParameters(profile.Maza); err != nil {
 		t.Fatal(err)
 	}
+	if profile.Wireguard["mtu"] != float64(1280) {
+		t.Fatal("v2 nominal MTU must remain compatible with existing importers")
+	}
+	instances, err := (&InboundService{}).DesiredAmneziaWGInstances()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, inst := range instances {
+		if inst.Tag == mazaTag && inst.MTU+inst.Obfuscation.S4+32+48 != 1280 {
+			t.Fatal("managed MAZA interface does not reserve encapsulation overhead")
+		}
+	}
 	for _, old := range []string{"auth_private_key", "wireguard_endpoint", "origin"} {
 		if bytes.Contains(payload, []byte(old)) {
 			t.Fatal("obsolete transport in native profile")

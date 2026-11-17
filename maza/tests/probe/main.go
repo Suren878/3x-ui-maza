@@ -76,7 +76,11 @@ func run() error {
 	if json.Unmarshal(b, &o) != nil {
 		return fmt.Errorf("parameters invalid")
 	}
-	dev, err := amneziawgnet.NewDevice(amneziawg.Instance{Tag: "maza-probe", InterfaceName: "maza-probe", Listen: "127.0.0.1", PrivateKey: p.Wireguard.Private, Address: []string{p.Wireguard.Address}, MTU: 1280, Obfuscation: o, Peers: []amneziawg.Peer{{Email: "probe", PublicKey: p.Wireguard.Public, AllowedIPs: []string{"0.0.0.0/0"}}}}, amneziawgnet.DeviceOptions{HeaderProtectionKey: o.HeaderProtectionKey, ContentPaddingAddition: o.ContentPaddingAddition, RekeyAfterTime: o.RekeyAfterTime, RejectAfterTime: o.RejectAfterTime, RekeyTimeout: o.RekeyTimeout, KeepaliveTimeout: o.KeepaliveTimeout, MaxHandshakeAttempts: o.MaxHandshakeAttempts, RandomTrailers: o.RandomTrailers, DisableCookies: o.DisableCookies})
+	mtu, err := core.MazaInnerMTU(p.Maza)
+	if err != nil {
+		return err
+	}
+	dev, err := amneziawgnet.NewDevice(amneziawg.Instance{Tag: "maza-probe", InterfaceName: "maza-probe", Listen: "127.0.0.1", PrivateKey: p.Wireguard.Private, Address: []string{p.Wireguard.Address}, MTU: mtu, Obfuscation: o, Peers: []amneziawg.Peer{{Email: "probe", PublicKey: p.Wireguard.Public, AllowedIPs: []string{"0.0.0.0/0"}}}}, amneziawgnet.DeviceOptions{HeaderProtectionKey: o.HeaderProtectionKey, ContentPaddingAddition: o.ContentPaddingAddition, RekeyAfterTime: o.RekeyAfterTime, RejectAfterTime: o.RejectAfterTime, RekeyTimeout: o.RekeyTimeout, KeepaliveTimeout: o.KeepaliveTimeout, MaxHandshakeAttempts: o.MaxHandshakeAttempts, RandomTrailers: o.RandomTrailers, DisableCookies: o.DisableCookies})
 	if err != nil {
 		return fmt.Errorf("core initialization failed: %w", err)
 	}

@@ -525,6 +525,15 @@ func calculatePaddingSize(packetSize, mtu int) int {
 	return paddedSize - lastUnit
 }
 
+// A peer can learn a large UDP window from an older client or another path.
+// Padding must still fit the current interface's encapsulated MTU.
+func (device *Device) paddingWindow(window int) int {
+	if mtu := int(device.tun.mtu.Load()); mtu > 0 {
+		return min(window, mtu+MinMessageSize+int(device.paddings.transport.Load()))
+	}
+	return window
+}
+
 func (peer *Peer) randomPaddingAddition(packetSize int) int {
 	addition := peer.device.contentPaddingAddition.Load()
 
@@ -532,7 +541,7 @@ func (peer *Peer) randomPaddingAddition(packetSize int) int {
 		return -1
 	}
 
-	udpWindow := int(peer.udpWindow.Load())
+	udpWindow := peer.device.paddingWindow(int(peer.udpWindow.Load()))
 	if udpWindow < packetSize {
 		return 0
 	}
@@ -550,10 +559,11 @@ func (device *Device) randomTrailer(packetSize int) int {
 		return -1
 	}
 
-	if DefaultUdpWindow < packetSize {
+	window := device.paddingWindow(DefaultUdpWindow)
+	if window <= packetSize {
 		return 0
 	}
-	return int(fastrandn(uint32(DefaultUdpWindow - packetSize)))
+	return int(fastrandn(uint32(window - packetSize)))
 }
 
 func (peer *Peer) randomTrailer(packetSize int) int {
@@ -561,8 +571,8 @@ func (peer *Peer) randomTrailer(packetSize int) int {
 		return -1
 	}
 
-	udpWindow := int(peer.udpWindow.Load())
-	if udpWindow < packetSize {
+	udpWindow := peer.device.paddingWindow(int(peer.udpWindow.Load()))
+	if udpWindow <= packetSize {
 		return 0
 	}
 	return int(fastrandn(uint32(udpWindow - packetSize)))

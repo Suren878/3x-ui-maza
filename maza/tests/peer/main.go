@@ -23,6 +23,7 @@ func main() {
 	var cfg struct {
 		Port                                   int
 		HTTPPort                               int
+		MTU                                    int
 		PrivateKey, PublicKey, ClientPublicKey string
 		Obfuscation                            amneziawg.Obfuscation31
 	}
@@ -33,8 +34,11 @@ func main() {
 	if json.Unmarshal(data, &cfg) != nil || cfg.Port < 1 || cfg.HTTPPort < 1 {
 		panic("invalid test configuration")
 	}
+	if cfg.MTU == 0 {
+		cfg.MTU = 1280
+	}
 	inst := amneziawg.Instance{Id: 1, Tag: "maza-test", InterfaceName: "maza-test", Listen: "127.0.0.1", ListenPort: cfg.Port,
-		PrivateKey: cfg.PrivateKey, PublicKey: cfg.PublicKey, Address: []string{"10.78.0.1/24"}, MTU: 1280,
+		PrivateKey: cfg.PrivateKey, PublicKey: cfg.PublicKey, Address: []string{"10.78.0.1/24"}, MTU: cfg.MTU,
 		Obfuscation: cfg.Obfuscation, Peers: []amneziawg.Peer{{Email: "test", PublicKey: cfg.ClientPublicKey, AllowedIPs: []string{"10.78.0.2/32"}}}}
 	o := cfg.Obfuscation
 	dev, err := amneziawgnet.NewDevice(inst, amneziawgnet.DeviceOptions{HeaderProtectionKey: o.HeaderProtectionKey,

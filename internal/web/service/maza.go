@@ -191,11 +191,12 @@ func (s *MazaService) save() error {
 }
 
 func (s *MazaService) nativeSettings(clients []model.Client) ([]byte, error) {
-	if err := mazacore.ValidateMazaParameters(s.state.Parameters); err != nil {
+	mtu, err := mazacore.MazaInnerMTU(s.state.Parameters)
+	if err != nil {
 		return nil, err
 	}
 	server := map[string]any{"privateKey": s.state.ServerPrivate, "publicKey": s.state.ServerPublic,
-		"subnetIp": "10.78.0.0", "subnetCidr": 24, "mtu": 1280, "primaryDns": "1.1.1.1", "secondaryDns": "1.0.0.1"}
+		"subnetIp": "10.78.0.0", "subnetCidr": 24, "mtu": mtu, "primaryDns": "1.1.1.1", "secondaryDns": "1.0.0.1"}
 	names := map[string]string{"headerprotectionkey": "headerProtectionKey", "contentpaddingaddition": "contentPaddingAddition",
 		"rekeyaftertime": "rekeyAfterTime", "rejectaftertime": "rejectAfterTime", "rekeytimeout": "rekeyTimeout",
 		"keepalivetimeout": "keepaliveTimeout", "maxhandshakeattempts": "maxHandshakeAttempts",

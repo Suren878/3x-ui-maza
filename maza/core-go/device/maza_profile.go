@@ -21,6 +21,17 @@ var mazaTiming = map[string]string{
 	"rekeytimeout": "3-6", "keepalivetimeout": "8-16", "maxhandshakeattempts": "18-24",
 }
 
+// MazaInnerMTU reserves the worst-case outer IP/UDP headers, transport header,
+// authentication tag and S4 prefix within a 1280-byte path. Share v2 retains
+// its nominal MTU field; this is the actual IPv4 netstack interface MTU.
+func MazaInnerMTU(p MazaParameters) (int, error) {
+	if err := ValidateMazaParameters(p); err != nil {
+		return 0, err
+	}
+	s4, _ := strconv.Atoi(p["s4"])
+	return 1280 - 40 - 8 - MinMessageSize - s4, nil
+}
+
 func GenerateMazaParameters() (MazaParameters, error) {
 	entropy := make([]byte, 64)
 	if _, err := rand.Read(entropy); err != nil {

@@ -13,6 +13,15 @@ discarded. New inbounds use one random 12–31-byte prefix length for S1–S4, m
 the disjoint type ranges unambiguous. Existing v2 profiles, keys and parameters
 remain valid; this update does not rotate a running inbound's parameters.
 
+Panel `3.11.0-maza.6` with AIRClient `0.3.6 (19)` fixes large transfers on
+1280-byte paths. The managed inner IPv4 MTU is `1280 - 48 - 32 - S4`, reserving
+outer IPv6/UDP, the WireGuard header/tag and the masking prefix. Random padding
+and trailers cannot exceed the resulting 1232-byte UDP payload budget, even
+when an old peer has raised the learned UDP window. gVisor fragments large
+inner UDP messages; AIRClient now fragments/reassembles them too. Existing
+v2 exports keep nominal `mtu: 1280`, parameters and keys; the cores calculate
+the actual interface MTU internally. Upgrade both ends for large UDP support.
+
 Set `MAZA_ENDPOINT=vpn.example.com:9443` on the panel and publish container UDP 9443
 on that endpoint. Keep the web panel behind its authenticated HTTPS reverse proxy.
 Runtime remains unprivileged, read-only, capability-free, with its own database
