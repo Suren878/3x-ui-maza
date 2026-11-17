@@ -99,7 +99,7 @@ try:
         fixtures.append({'url': url, 'links': [direct]})
     # Existing conventional subscriptions must still return importable links.
     if not a.isolated:
-        defaults = api('/panel/setting/defaultSettings', {})
+        defaults = api('/panel/api/setting/defaultSettings', {})
         rows = api('/panel/api/clients/list')
         maza_emails = {c['email'] for c in clients}
         for row in rows:
