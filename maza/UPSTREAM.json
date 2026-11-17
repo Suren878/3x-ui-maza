@@ -7,6 +7,8 @@
   "license": "MIT",
   "changes": [
     "mandatory MAZA profile generator and validation",
-    "panel module uses local source replacement"
+    "panel module uses local source replacement",
+    "prioritize transport classification with random trailers to avoid ciphertext/handshake collisions",
+    "generate equal short S1-S4 prefixes for unambiguous classification"
   ]
 }

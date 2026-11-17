@@ -610,6 +610,19 @@ func (device *Device) DeterminePacketTypeAndPadding(packet []byte, typeHash []by
 
 	size := len(packet)
 	randomTrailers := device.randomTrailers.Load()
+	// MAZA: trailers relax handshake length checks to >=. With different
+	// S-offsets, ciphertext in a transport packet can then happen to match a
+	// handshake's H-range. Prioritize transport, as the native Rust peer does,
+	// so bulk data is not spuriously dropped before authentication.
+	if randomTrailers {
+		padding = device.paddings.transport.Load()
+		if size >= int(padding)+MessageTransportSize {
+			applyHash(headerBytes[:], packet[padding:padding+4], typeHash)
+			if device.headers.transport.Load().Contains(binary.LittleEndian.Uint32(headerBytes[:])) {
+				return MessageTransportSize, MessageTransportType, padding
+			}
+		}
+	}
 
 	padding = device.paddings.init.Load()
 	header = device.headers.init.Load()

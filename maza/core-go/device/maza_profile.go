@@ -26,12 +26,16 @@ func GenerateMazaParameters() (MazaParameters, error) {
 	if _, err := rand.Read(entropy); err != nil {
 		return nil, err
 	}
+	// A common offset makes disjoint H-ranges unambiguous even with random
+	// trailers. Twelve bytes is the header-protection nonce minimum; vary the
+	// offset per interface without paying a large prefix cost on every packet.
+	prefix := strconv.Itoa(12 + int(entropy[32]%20))
 	p := MazaParameters{
 		"headerprotectionkey":    base64.StdEncoding.EncodeToString(entropy[:32]),
-		"s1":                     strconv.Itoa(96 + int(entropy[32]&31)),
-		"s2":                     strconv.Itoa(96 + int(entropy[33]&31)),
-		"s3":                     strconv.Itoa(64 + int(entropy[34]&31)),
-		"s4":                     strconv.Itoa(16 + int(entropy[35]%16)),
+		"s1":                     prefix,
+		"s2":                     prefix,
+		"s3":                     prefix,
+		"s4":                     prefix,
 		"contentpaddingaddition": "32-192", "randomtrailers": "true",
 		"disablecookies": "false", "jc": "0", "jmin": "0", "jmax": "0",
 		"persistentkeepaliveinterval": "15-25",

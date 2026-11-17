@@ -16,6 +16,9 @@ func TestMazaGeneratedProfiles(t *testing.T) {
 			t.Fatal("repeated protection key")
 		}
 		previous = p["headerprotectionkey"]
+		if p["s1"] != p["s2"] || p["s1"] != p["s3"] || p["s1"] != p["s4"] {
+			t.Fatal("new profiles need a shared packet-type offset with random trailers")
+		}
 		for k, v := range p {
 			delete(p, k)
 			if ValidateMazaParameters(p) == nil {

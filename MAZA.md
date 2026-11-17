@@ -6,6 +6,13 @@ header-protection key and required padding/timing parameters. There is no separa
 MAZA container, TLS transport, bridge executable or Xray protocol-registry patch.
 Existing userspace AWG routing integrates with the panel's normal Xray outbound.
 
+Panel `3.11.0-maza.5` prioritizes data classification when random trailers are
+enabled, matching the Rust receiver. Previously, ciphertext at a different S-offset
+could accidentally match a handshake H-range and cause a valid data packet to be
+discarded. New inbounds use one random 12–31-byte prefix length for S1–S4, making
+the disjoint type ranges unambiguous. Existing v2 profiles, keys and parameters
+remain valid; this update does not rotate a running inbound's parameters.
+
 Set `MAZA_ENDPOINT=vpn.example.com:9443` on the panel and publish container UDP 9443
 on that endpoint. Keep the web panel behind its authenticated HTTPS reverse proxy.
 Runtime remains unprivileged, read-only, capability-free, with its own database
