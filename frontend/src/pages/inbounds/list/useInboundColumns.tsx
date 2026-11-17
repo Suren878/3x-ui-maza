@@ -28,6 +28,7 @@ import {
 import type { ClientCountEntry, DBInboundRecord, InboundSpeedEntry, RowAction } from './types';
 
 interface UseInboundColumnsParams {
+  mazaPort: string;
   hasAnyRemark: boolean;
   hasAnySubSortIndex: boolean;
   hasActiveNode: boolean;
@@ -43,6 +44,7 @@ interface UseInboundColumnsParams {
 }
 
 export function useInboundColumns({
+  mazaPort,
   hasAnyRemark,
   hasAnySubSortIndex,
   hasActiveNode,
@@ -208,6 +210,7 @@ export function useInboundColumns({
         align: 'center',
         width: 80,
         sorter: (a, b) => a.port - b.port,
+        render: (port: number, record) => record.tag === 'maza-managed' ? mazaPort : port,
       },
       {
         title: t('pages.inbounds.protocol'),
@@ -216,6 +219,7 @@ export function useInboundColumns({
         width: 190,
         sorter: (a, b) => compareText(a.protocol, b.protocol),
         render: (_, record) => {
+          if (record.tag === 'maza-managed') return <><Tag color="purple">MAZA</Tag><Tag color="blue">UDP</Tag></>;
           const tags: ReactElement[] = [
             <Tag key="p" color="purple">
               {record.protocol}
@@ -484,5 +488,6 @@ export function useInboundColumns({
     datepicker,
     onRowAction,
     onSwitchEnable,
+    mazaPort,
   ]);
 }

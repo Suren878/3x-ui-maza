@@ -1,38 +1,10 @@
-# Merge into an existing Compose project whose panel service is named "panel".
-# Keep its existing database/bin volumes and security settings.
+# Merge into the existing panel project. Keep its database/bin volumes, web
+# ingress, runtime restrictions and explicit VPN egress policy.
+# Remove the prototype relay service and its TCP 9443 mapping after migration.
 services:
   panel:
-    image: local/3x-ui-maza:3.11.0-maza1
+    image: ${MAZA_PANEL_IMAGE:?Set the verified native panel image digest}
     environment:
-      MAZA_ORIGIN: ${MAZA_ORIGIN:?Set the public HTTPS origin}
-      MAZA_SERVER_ADDRESS: ${MAZA_SERVER_ADDRESS:-}
+      MAZA_ENDPOINT: ${MAZA_ENDPOINT:?Set the public hostname and UDP port}
     ports:
-      - "127.0.0.1:19443:9443/tcp"
-  maza:
-    image: local/maza-relay:0.1.0-panel1
-    network_mode: service:panel
-    depends_on:
-      panel:
-        condition: service_started
-    user: "10002:10002"
-    read_only: true
-    cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
-    volumes:
-      - ${PANEL_DATA_DIR:?Set the existing panel database directory}/maza/relay:/config:ro
-      - ${MAZA_CERT_DIR:?Set this deployment's certificate directory}:/cert:ro
-    restart: unless-stopped
-    mem_limit: 128m
-    pids_limit: 64
-    stop_grace_period: 10s
-    healthcheck:
-      test: [CMD, maza-server, --config, /config/server.toml, --check]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 15s
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+      - "0.0.0.0:${MAZA_UDP_PORT:-9443}:9443/udp"

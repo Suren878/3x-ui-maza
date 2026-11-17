@@ -267,6 +267,9 @@ func (a *ClientController) update(c *gin.Context) {
 	if !ok {
 		return
 	}
+	if rejectManagedMazaChange(c, email) {
+		return
+	}
 	body, err := c.GetRawData()
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
@@ -294,6 +297,9 @@ func (a *ClientController) update(c *gin.Context) {
 func (a *ClientController) delete(c *gin.Context) {
 	email, ok := clientEmailParam(c)
 	if !ok {
+		return
+	}
+	if rejectManagedMazaChange(c, email) {
 		return
 	}
 	keepTraffic := c.Query("keepTraffic") == "1"
@@ -325,6 +331,9 @@ type externalLinksBody struct {
 
 func (a *ClientController) attach(c *gin.Context) {
 	email := c.Param("email")
+	if rejectManagedMazaChange(c, email) {
+		return
+	}
 	var body attachDetachBody
 	if err := c.ShouldBindJSON(&body); err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
@@ -389,6 +398,9 @@ func (a *ClientController) bulkAdjust(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
 	}
+	if rejectManagedMazaChange(c, req.Emails...) {
+		return
+	}
 	result, needRestart, err := a.clientService.BulkAdjust(&a.inboundService, req.Emails, req.AddDays, req.AddBytes, req.Flow, req.LimitHwid, req.AdTag)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
@@ -417,6 +429,9 @@ func (a *ClientController) bulkAttach(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
 	}
+	if rejectManagedMazaChange(c, req.Emails...) {
+		return
+	}
 	result, needRestart, err := a.clientService.BulkAttach(&a.inboundService, req.Emails, req.InboundIds)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
@@ -440,6 +455,9 @@ func (a *ClientController) bulkDetach(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
 		return
 	}
+	if rejectManagedMazaChange(c, req.Emails...) {
+		return
+	}
 	result, needRestart, err := a.clientService.BulkDetach(&a.inboundService, req.Emails, req.InboundIds)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
@@ -456,6 +474,9 @@ func (a *ClientController) bulkDelete(c *gin.Context) {
 	var req bulkDeleteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
+	if rejectManagedMazaChange(c, req.Emails...) {
 		return
 	}
 	result, needRestart, err := a.clientService.BulkDelete(&a.inboundService, req.Emails, req.KeepTraffic)
@@ -486,6 +507,9 @@ func (a *ClientController) bulkSetEnable(c *gin.Context, enable bool) {
 	var req bulkEnableRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
+		return
+	}
+	if rejectManagedMazaChange(c, req.Emails...) {
 		return
 	}
 	result, needRestart, err := a.clientService.BulkSetEnable(&a.inboundService, req.Emails, enable)
@@ -734,6 +758,9 @@ func (a *ClientController) generateHappLink(c *gin.Context) {
 
 func (a *ClientController) detach(c *gin.Context) {
 	email := c.Param("email")
+	if rejectManagedMazaChange(c, email) {
+		return
+	}
 	var body attachDetachBody
 	if err := c.ShouldBindJSON(&body); err != nil {
 		jsonMsg(c, I18nWeb(c, "somethingWentWrong"), err)
@@ -775,4 +802,19 @@ func (a *ClientController) bulkResetTraffic(c *gin.Context) {
 	jsonObj(c, gin.H{"affected": affected}, nil)
 	a.xrayService.SetToNeedRestart()
 	notifyClientsChanged()
+}
+
+// Generic client mutations cannot bypass MAZA's durable reconciliation state.
+func rejectManagedMazaChange(c *gin.Context, emails ...string) bool {
+	s, err := service.OpenMazaService()
+	if err != nil || s == nil {
+		return false
+	}
+	for _, email := range emails {
+		if s.IsManagedClient(email) {
+			jsonMsg(c, "", errors.New("manage this client with the MAZA controls"))
+			return true
+		}
+	}
+	return false
 }

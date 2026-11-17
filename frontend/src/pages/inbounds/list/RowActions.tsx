@@ -38,6 +38,12 @@ export function buildRowActionsMenu({
   isMobile?: boolean;
   hasClients?: boolean;
 }): MenuProps['items'] {
+  if (record.tag === 'maza-managed') {
+    return [
+      ...(isMobile ? [{ key: 'edit', icon: <EditOutlined aria-hidden />, label: t('edit') }] : []),
+      { key: 'delete', icon: <DeleteOutlined aria-hidden />, danger: true, label: t('delete') },
+    ];
+  }
   const items: MenuProps['items'] = [];
   if (isMobile) {
     items.push({ key: 'edit', icon: <EditOutlined aria-hidden />, label: t('edit') });

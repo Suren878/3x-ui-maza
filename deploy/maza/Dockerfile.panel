@@ -4,18 +4,21 @@ COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --ignore-scripts
 COPY frontend/ ./
 COPY internal/web/translation /src/internal/web/translation
-RUN npm run typecheck && npm run build
+RUN npm run typecheck && npm run test -- src/test/wireguard-client-config.test.ts && npm run build
 
 FROM golang:1.27.4-alpine AS builder
 RUN apk add --no-cache build-base git
 WORKDIR /src
 COPY go.mod go.sum ./
+COPY maza/core-go ./maza/core-go
 RUN go mod download
 COPY . .
 COPY --from=frontend /src/internal/web/dist ./internal/web/dist
 ENV CGO_ENABLED=1
 ENV CGO_CFLAGS="-D_LARGEFILE64_SOURCE"
+RUN cd maza/core-go && go test ./device -run '^TestMaza' -count=1
 RUN go test ./internal/web/service -run '^TestMaza' -count=1
+RUN go test ./internal/sub -run '^TestMazaNoWireguardLink$' -count=1
 RUN go build -ldflags "-w -s" -o /x-ui main.go
 
 FROM ghcr.io/mhsanaei/3x-ui:v3.11.0@sha256:1628adbd9bed680d25d6f714bef4a20f132105f4612ea294952f6665dad32e5b

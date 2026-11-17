@@ -9,6 +9,7 @@ import { HappLinkResultSchema } from '@/generated/zod';
 import { isPostQuantumLink } from '@/lib/xray/inbound-link';
 import { LinkTags, linkMetaText, parseLinkParts } from '@/lib/xray/link-label';
 import { QrPanel } from '@/pages/inbounds/qr';
+import { useMazaProfile } from './useMazaProfile';
 import type { ClientRecord, InboundOption } from '@/hooks/useClients';
 import { formatTunnelConfigMeta } from '@/lib/inbounds/label';
 import {
@@ -238,6 +239,7 @@ function ClientQrModalContent({
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [links, setLinks] = useState<string[]>([]);
+  const maza = useMazaProfile(open, client, inboundsById);
   const [loading, setLoading] = useState(false);
 
   const subId = client?.subId;
@@ -383,7 +385,7 @@ function ClientQrModalContent({
     wgConfigs.length > 0 ||
     awgConfigs.length > 0 ||
     tuicConfigs.length > 0 ||
-    links.length > 0;
+    links.length > 0 || !!maza.profile;
 
   // The reset runs during render so the effect only carries the request.
   const openSubId = open ? (client?.subId ?? '') : '';
@@ -422,6 +424,7 @@ function ClientQrModalContent({
 
   const items = useMemo(() => {
     const out: { key: string; label: React.ReactNode; children: React.ReactNode }[] = [];
+    if (maza.profile) out.push({ key: 'maza', label: 'MAZA', children: <QrPanel value={maza.profile.link} remark={client?.email || 'MAZA'} /> });
     if (subLink) {
       out.push({
         key: 'sub',
@@ -538,6 +541,7 @@ function ClientQrModalContent({
     wgConfigs,
     awgConfigs,
     links,
+    maza.profile,
     client?.email,
     selectVariant,
     regenerateHappLink,
@@ -564,7 +568,7 @@ function ClientQrModalContent({
       onCancel={() => onOpenChange(false)}
     >
       <Spin aria-live="off" spinning={loading}>
-        {!client?.subId && !loading && (
+        {!client?.subId && !loading && !maza.profile && (
           <div style={{ padding: 24, textAlign: 'center', opacity: 0.6 }}>
             {t('pages.clients.noSubId')}
           </div>

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, Card, Input, Modal, Popconfirm, QRCode, Space, Table, Tag, Typography } from 'antd';
+import { Alert, Button, Card, Input, Modal, Popconfirm, QRCode, Space, Table, Tag, Typography, Switch } from 'antd';
 import { HttpUtil } from '@/utils';
 
-type Client = { id: string; name: string; address: string; created: number };
+type Client = { id: string; name: string; address: string; created: number; enabled: boolean };
 type Status = { clients: Client[]; origin: string; pending: boolean; limit: number };
 const api = '/panel/maza/api';
 
@@ -28,15 +28,20 @@ export default function MazaPage() {
     try { await HttpUtil.post(`${api}/clients/${id}/delete`); await refresh(); }
     finally { setBusy(false); }
   }
+  async function enable(c: Client, enabled: boolean) {
+    setBusy(true);
+    try { await HttpUtil.post(`${api}/clients/${c.id}/enable`, { enabled }, { headers: { 'Content-Type': 'application/json' } }); await refresh(); }
+    finally { setBusy(false); }
+  }
   async function showQR(c: Client) {
     const r = await HttpUtil.get<{ link: string }>(`${api}/clients/${c.id}/share`);
     if (r.success && r.obj) setShare({ name: c.name, link: r.obj.link });
   }
   const base = (window.X_UI_BASE_PATH || '/').replace(/\/$/, '');
   return <Space orientation="vertical" size="large" style={{ width: '100%' }}>
-    <div><Typography.Title level={2}>MAZA</Typography.Title><Typography.Text type="secondary">Корпоративные подключения через HTTPS · MAZA 0.1</Typography.Text></div>
+    <div><Typography.Title level={2}>MAZA</Typography.Title><Typography.Text type="secondary">Корпоративные подключения · MAZA v2</Typography.Text></div>
     {error && <Alert type="error" title={error} showIcon />}
-    <Alert type="info" showIcon title="Профиль MAZA" description="QR предназначен для клиента с поддержкой MAZA. Для текущего прототипа скачайте ZIP с настройками MAZA и WireGuard. При изменении клиентов MAZA кратко переподключается. Подключение этого формата к AIRClient находится на следующем этапе." />
+    <Alert type="info" showIcon title="Профиль MAZA" description="Импортируйте QR, ссылку или profile.json в AIRClient 0.3.2 или новее. Профиль содержит ключи доступа — передавайте его только владельцу устройства." />
     <Card title="Новый клиент" extra={<Tag color={status?.pending ? 'orange' : 'blue'}>{status?.pending ? 'Применяем изменения' : status?.origin || 'Подключение к серверу'}</Tag>}>
       <Space wrap><Input aria-label="Имя клиента" placeholder="Например, рабочий Mac" value={name} onChange={e => setName(e.target.value)} maxLength={64} onPressEnter={() => { if (name.trim() && !busy && !status?.pending) void create(); }} style={{ width: 280 }} />
       <Button type="primary" loading={busy} disabled={!name.trim() || !status || status.pending || status.clients.length >= status.limit} onClick={() => void create()}>Создать клиента</Button>
@@ -47,6 +52,7 @@ export default function MazaPage() {
         { title: 'Имя', dataIndex: 'name' },
         { title: 'Адрес', dataIndex: 'address' },
         { title: 'Создан', dataIndex: 'created', render: (v: number) => new Date(v * 1000).toLocaleDateString() },
+        { title: 'Включён', render: (_, c) => <Switch checked={c.enabled} disabled={busy || status?.pending} onChange={v => void enable(c, v)} /> },
         { title: 'Доступ', render: (_, c) => <Space>
           <Button disabled={status?.pending} onClick={() => void showQR(c)}>QR</Button>
           <Button disabled={status?.pending} href={`${base}/panel/maza/api/clients/${c.id}/bundle`}>ZIP</Button>

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type Key } from 'react';
+import { useCallback, useEffect, useMemo, useState, type Key } from 'react';
 import { useLocation, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import {
@@ -61,6 +61,7 @@ export default function InboundList({
   hasActiveNode,
   hosts,
   onAddInbound,
+  onRefresh,
   onGeneralAction,
   onRowAction,
   onBulkDelete,
@@ -68,6 +69,17 @@ export default function InboundList({
   const { t } = useTranslation();
   const [statsRecord, setStatsRecord] = useState<DBInboundRecord | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
+  const [mazaPort, setMazaPort] = useState('—');
+  const hasMaza = dbInbounds.some((ib) => ib.tag === 'maza-managed');
+  useEffect(() => {
+    if (!hasMaza) return;
+    let active = true;
+    void HttpUtil.get<{ origin: string }>('/panel/maza/api/clients', undefined, { silent: true }).then((result) => {
+      if (!active || !result.success || !result.obj) return;
+      try { setMazaPort(new URL(result.obj.origin).port || '443'); } catch { setMazaPort('—'); }
+    });
+    return () => { active = false; };
+  }, [hasMaza]);
   // Node filter (#4997): 'all' shows everything, 0 is the local-panel
   // sentinel (inbounds without a nodeId), otherwise a node id. Session-only.
   const [nodeFilter, setNodeFilter] = useState<number | 'all'>('all');
@@ -121,12 +133,16 @@ export default function InboundList({
     try {
       const formData = new FormData();
       formData.append('enable', String(next));
-      const msg = await HttpUtil.post(`/panel/api/inbounds/setEnable/${dbInbound.id}`, formData);
+      const msg = dbInbound.tag === 'maza-managed'
+        ? await HttpUtil.post('/panel/maza/api/settings', { enabled: next }, { headers: { 'Content-Type': 'application/json' } })
+        : await HttpUtil.post(`/panel/api/inbounds/setEnable/${dbInbound.id}`, formData);
       if (!msg?.success) dbInbound.enable = previous;
+      if (dbInbound.tag === 'maza-managed') onRefresh();
     } catch {
       dbInbound.enable = previous;
+      if (dbInbound.tag === 'maza-managed') onRefresh();
     }
-  }, []);
+  }, [onRefresh]);
 
   const hasAnyRemark = useMemo(
     () =>
@@ -151,15 +167,16 @@ export default function InboundList({
 
   const selectAll = useCallback(
     (checked: boolean) => {
-      setSelectedRowKeys(checked ? visibleInbounds.map((i) => i.id) : []);
+      setSelectedRowKeys(checked ? visibleInbounds.filter((i) => i.tag !== 'maza-managed').map((i) => i.id) : []);
     },
     [visibleInbounds],
   );
 
+  const selectableCount = visibleInbounds.filter((i) => i.tag !== 'maza-managed').length;
   const allSelected =
-    visibleInbounds.length > 0 && selectedRowKeys.length === visibleInbounds.length;
+    selectableCount > 0 && selectedRowKeys.length === selectableCount;
   const someSelected =
-    selectedRowKeys.length > 0 && selectedRowKeys.length < visibleInbounds.length;
+    selectedRowKeys.length > 0 && selectedRowKeys.length < selectableCount;
 
   const handleBulkDelete = useCallback(async () => {
     const ok = await onBulkDelete(selectedRowKeys);
@@ -167,6 +184,7 @@ export default function InboundList({
   }, [onBulkDelete, selectedRowKeys]);
 
   const columns = useInboundColumns({
+    mazaPort,
     hasAnyRemark,
     hasAnySubSortIndex,
     hasActiveNode,
@@ -311,23 +329,25 @@ export default function InboundList({
                   >
                     <div className="card-head">
                       <Checkbox
+                        disabled={record.tag === 'maza-managed'}
                         checked={selectedRowKeys.includes(record.id)}
                         onChange={(e) => toggleSelect(record.id, e.target.checked)}
                       />
                       <span className="card-id">#{record.id}</span>
                       <span className="tag-name">
                         <span className="inbound-remark">{record.remark}</span>
+                        {record.tag === 'maza-managed' && <span> · MAZA · {mazaPort}</span>}
                         <HostRemarksSuffix remarks={hostRemarksByInboundId.get(record.id) ?? []} />
                       </span>
                       <div className="card-actions">
-                        <Tooltip title={t('pages.inbounds.inboundInfo')}>
+                        <Tooltip title={record.tag === 'maza-managed' ? 'MAZA' : t('pages.inbounds.inboundInfo')}>
                           <InfoCircleOutlined
                             className="row-action-trigger"
                             role="button"
                             tabIndex={0}
                             aria-label={t('pages.inbounds.inboundInfo')}
-                            onClick={() => setStatsRecord(record)}
-                            onKeyDown={activateOnKey(() => setStatsRecord(record))}
+                            onClick={() => record.tag === 'maza-managed' ? onRowAction({ key: 'edit', dbInbound: record }) : setStatsRecord(record)}
+                            onKeyDown={activateOnKey(() => record.tag === 'maza-managed' ? onRowAction({ key: 'edit', dbInbound: record }) : setStatsRecord(record))}
                           />
                         </Tooltip>
                         <Switch
@@ -373,6 +393,7 @@ export default function InboundList({
             rowKey={(r) => r.id}
             rowSelection={{
               selectedRowKeys,
+              getCheckboxProps: (record) => ({ disabled: record.tag === 'maza-managed' }),
               onChange: (keys: Key[]) => setSelectedRowKeys(keys as number[]),
             }}
             pagination={paginationFor(visibleInbounds)}

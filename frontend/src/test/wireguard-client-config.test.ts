@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildWireguardClientConfig } from '@/pages/clients/wireguardConfig';
+import { buildWireguardClientConfig, findWireguardInbounds } from '@/pages/clients/wireguardConfig';
 import type { ClientRecord, InboundOption } from '@/hooks/useClients';
 
 const client: ClientRecord = {
@@ -21,6 +21,13 @@ const inbound: InboundOption = {
   wgPublicKey: 'DGSYIcEKAUkA7HhzGSjxLZuV67BR3LeyU0BMLJzNVHQ=',
   wgMtu: 1420,
 };
+
+describe('findWireguardInbounds', () => {
+  it('does not produce ordinary WireGuard configurations for a MAZA backend', () => {
+    expect(findWireguardInbounds(client, { 90: { ...inbound, tag: 'maza-managed' } })).toEqual([]);
+    expect(findWireguardInbounds(client, { 90: inbound })).toEqual([inbound]);
+  });
+});
 
 describe('buildWireguardClientConfig', () => {
   it('emits the canonical PresharedKey key, not PreSharedKey', () => {

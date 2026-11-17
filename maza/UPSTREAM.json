@@ -1,0 +1,12 @@
+{
+  "repository": "https://github.com/amnezia-vpn/amneziawg-go",
+  "version": "v3.1.20260828",
+  "moduleSum": "h1:D8d8gGvwXcTxUIsE4z6F6vjy4/VZddu95vMNtOygh1c=",
+  "maintainedFork": "https://github.com/Suren878/3x-ui-maza",
+  "path": "maza/core-go",
+  "license": "MIT",
+  "changes": [
+    "mandatory MAZA profile generator and validation",
+    "panel module uses local source replacement"
+  ]
+}

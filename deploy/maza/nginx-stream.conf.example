@@ -1,9 +1,0 @@
-# Include inside nginx's stream {} context. TLS terminates in maza-server.
-# Permit TCP/9443 in the host's ingress policy. Keep the Docker port on loopback.
-server {
-    listen 9443;
-    listen [::]:9443;
-    proxy_pass 127.0.0.1:19443;
-    proxy_connect_timeout 5s;
-    proxy_timeout 300s;
-}

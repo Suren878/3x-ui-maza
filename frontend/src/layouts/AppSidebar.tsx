@@ -190,7 +190,7 @@ export default function AppSidebar() {
 
   const tabs = useMemo<{ key: string; icon: ComponentType; title: string }[]>(
     () => [
-      ...PANEL_ROUTES.map((route) => ({
+      ...PANEL_ROUTES.filter((route) => route.path !== '/maza').map((route) => ({
         key: route.path,
         icon: route.icon,
         title: t(route.titleKey),

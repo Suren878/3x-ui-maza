@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Divider, Modal, Popover, Tag, Tooltip, message } from 'antd';
+import { Alert, Button, Divider, Modal, Popover, Tag, Tooltip, message } from 'antd';
 import {
   CopyOutlined,
   DownloadOutlined,
@@ -18,6 +18,7 @@ import type { ClientRecord, InboundOption } from '@/hooks/useClients';
 import { isPostQuantumLink } from '@/lib/xray/inbound-link';
 import { LinkTags, linkMetaText, parseLinkParts } from '@/lib/xray/link-label';
 import { QrPanel } from '@/pages/inbounds/qr';
+import { useMazaProfile } from './useMazaProfile';
 import ClientHwidListModal from '@/components/clients/ClientHwidList';
 import ConfigBlock from '@/components/clients/ConfigBlock';
 import {
@@ -118,6 +119,7 @@ export default function ClientInfoModal({
   const dateLabel = (ts?: number) => (!ts || ts <= 0 ? '-' : IntlUtil.formatDate(ts, datepicker));
   const [messageApi, messageContextHolder] = message.useMessage();
   const [links, setLinks] = useState<string[]>([]);
+  const maza = useMazaProfile(open, client, inboundsById);
   const [clientIps, setClientIps] = useState<ClientIpInfo[]>([]);
   const [ipsLoading, setIpsLoading] = useState(false);
   const [ipsClearing, setIpsClearing] = useState(false);
@@ -307,6 +309,24 @@ export default function ClientInfoModal({
       >
         {client && (
           <>
+            {maza.attached && !maza.profile && (
+              <Alert type="info" showIcon title="Профиль MAZA" description={<>
+                Для MAZA нужен отдельный профиль. Создайте клиента и получите QR или ZIP в управлении MAZA.
+                {' '}<Button type="link" href={`${(window.X_UI_BASE_PATH || '/').replace(/\/$/, '')}/panel/maza`}>Открыть MAZA</Button>
+              </>} />
+            )}
+            {maza.profile && <>
+              <Divider>MAZA</Divider>
+              <div className="link-row">
+                <Tag color="purple">MAZA</Tag><span className="link-row-title">Профиль MAZA</span>
+                <div className="link-row-actions">
+                  <Button size="small" icon={<CopyOutlined aria-hidden />} aria-label={t('copy')} onClick={() => copyValue(maza.profile!.link)} />
+                  <Popover trigger="click" placement="left" destroyOnHidden content={<QrPanel value={maza.profile.link} remark={client.email} size={220} />}>
+                    <Button size="small" icon={<QrcodeOutlined aria-hidden />} aria-label={t('pages.clients.qrCode')} />
+                  </Popover>
+                </div>
+              </div>
+            </>}
             <table className="info-table block">
               <tbody>
                 <tr>
