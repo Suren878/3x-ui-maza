@@ -57,6 +57,16 @@ migration refuses existing v1 clients. Remove the obsolete relay and its publish
 TCP port after successful native validation. Preserve unrelated inbounds and the
 panel HTTPS configuration. Database schema remains 3.11.0.
 
+For an authorized live check, create a separate temporary client through the
+panel, keep its export private, and build `go build -o probe ./maza/tests/probe`.
+`./probe /private/path/profile.json 127.0.0.1:9443` checks the authenticated native
+handshake on the server. Add the expected public IPv4 as a third argument to also
+verify HTTPS egress using Cloudflare's trace endpoint and UDP DNS using 1.1.1.1.
+Those sockets use the userspace tunnel stack, with no host-network fallback or OS
+route changes. Revoke the temporary client and delete its export after testing.
+Running this on the server verifies the managed data path; it does not verify
+AIRClient's macOS extension or the public UDP path from the user's network.
+
 ## Profile v2
 
 `maza://` + unpadded base64url JSON: `version: 2`, `name`, `server`, `port`, `maza`
