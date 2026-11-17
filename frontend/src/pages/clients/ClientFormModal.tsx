@@ -959,7 +959,7 @@ export default function ClientFormModal({
         <FormProvider {...methods}>
           <Form layout="vertical">
             {!isEdit && mazaSelected ? <>
-              <Alert type="info" showIcon title="Клиент MAZA" description="Прямая ссылка и QR появятся у клиента без подписки. Лимиты и другие подключения для MAZA в этой форме пока не поддерживаются." />
+              <Alert type="info" showIcon title="Клиент MAZA" description="Подписка, прямая ссылка и QR появятся в карточке клиента. Подписку импортируйте в AIRClient. Лимиты и другие подключения для MAZA в этой форме пока не поддерживаются." />
               <Form.Item label={t('pages.clients.email')} required>
                 <Input value={email} onChange={(e) => methods.setValue('email', e.target.value)} />
               </Form.Item>

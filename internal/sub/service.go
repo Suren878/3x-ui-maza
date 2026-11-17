@@ -1000,10 +1000,21 @@ func mergeStreamFromMaster(childStream, masterStream string) string {
 // GetLink returns one (inbound, client) pair's links, `\n`-separated per externalProxy;
 // "" for a protocol (socks, http, mixed, wireguard, tunnel) or transport (xdrive) without one.
 func (s *SubService) GetLink(inbound *model.Inbound, email string) string {
-	// MAZA's WireGuard listener is loopback-only; its authenticated profile is
-	// issued by the MAZA page and cannot be represented by a WireGuard URL.
+	// A matched subscription gets the native profile, never a lossy WireGuard
+	// URL. The public controller has already selected peers by the bearer subId.
 	if inbound.Tag == service.MazaInboundTag {
-		return ""
+		if inbound.Protocol != model.AmneziaWG || inbound.UserId <= 0 {
+			return ""
+		}
+		maza, err := service.OpenMazaService()
+		if err != nil || maza == nil {
+			return ""
+		}
+		_, link, err := maza.ExportByEmail(inbound.UserId, email)
+		if err != nil {
+			return ""
+		}
+		return link
 	}
 	if network, _ := unmarshalStreamSettings(inbound.StreamSettings)["network"].(string); network == "xdrive" {
 		return ""

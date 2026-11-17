@@ -11,7 +11,7 @@ export default function MazaPage() {
   const [status, setStatus] = useState<Status | null>(null);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
-  const [share, setShare] = useState<{ name: string; link: string } | null>(null);
+  const [share, setShare] = useState<{ name: string; link: string; subscription: boolean } | null>(null);
   const [error, setError] = useState('');
   async function refresh() {
     const result = await HttpUtil.get<Status>(`${api}/clients`, undefined, { silent: true });
@@ -39,15 +39,15 @@ export default function MazaPage() {
     try { await HttpUtil.post(`${api}/clients/${c.id}/enable`, { enabled }, { headers: { 'Content-Type': 'application/json' } }); await refresh(); }
     finally { setBusy(false); }
   }
-  async function showQR(c: Client) {
-    const r = await HttpUtil.get<{ link: string }>(`${api}/clients/${c.id}/share`);
-    if (r.success && r.obj) setShare({ name: c.name, link: r.obj.link });
+  async function showQR(c: Client, subscription = false) {
+    const r = await HttpUtil.get<{ link: string }>(`${api}/clients/${c.id}/${subscription ? 'subscription' : 'share'}`);
+    if (r.success && r.obj) setShare({ name: c.name, link: r.obj.link, subscription });
   }
   const base = (window.X_UI_BASE_PATH || '/').replace(/\/$/, '');
   return <Space orientation="vertical" size="large" style={{ width: '100%' }}>
     <div><Typography.Title level={2}>MAZA</Typography.Title><Typography.Text type="secondary">Корпоративные подключения · MAZA v2</Typography.Text></div>
     {error && <Alert type="error" title={error} showIcon />}
-    <Alert type="info" showIcon title="Профиль MAZA" description="Импортируйте QR, ссылку или profile.json в AIRClient 0.3.2 или новее. Профиль содержит ключи доступа — передавайте его только владельцу устройства." />
+    <Alert type="info" showIcon title="Профиль MAZA" description="Добавьте ссылку подписки в AIRClient 0.3.3 или новее, чтобы получать обновления профиля. Также доступны прямой QR и ZIP. Для каждого устройства создавайте отдельного клиента." />
     <Card title="Новый клиент" extra={<Tag color={status?.pending ? 'orange' : 'blue'}>{status?.pending ? 'Применяем изменения' : status?.origin || 'Подключение к серверу'}</Tag>}>
       <Space wrap><Input aria-label="Имя клиента" placeholder="Например, рабочий Mac" value={name} onChange={e => setName(e.target.value)} maxLength={64} onPressEnter={() => { if (name.trim() && !busy && !status?.pending) void create(); }} style={{ width: 280 }} />
       <Button type="primary" loading={busy} disabled={!name.trim() || !status || status.pending || status.clients.length >= status.limit} onClick={() => void create()}>Создать клиента</Button>
@@ -60,6 +60,7 @@ export default function MazaPage() {
         { title: 'Создан', dataIndex: 'created', render: (v: number) => new Date(v * 1000).toLocaleDateString() },
         { title: 'Включён', render: (_, c) => <Switch checked={c.enabled} disabled={busy || status?.pending} onChange={v => void enable(c, v)} /> },
         { title: 'Доступ', render: (_, c) => <Space>
+          <Button disabled={status?.pending} onClick={() => void showQR(c, true)}>Подписка</Button>
           <Button disabled={status?.pending} onClick={() => void showQR(c)}>QR</Button>
           <Button disabled={status?.pending} href={`${base}/panel/maza/api/clients/${c.id}/bundle`}>ZIP</Button>
           <Popconfirm title={`Удалить доступ «${c.name}»?`} description="Ключи и действующие MAZA-сессии будут отозваны." onConfirm={() => remove(c.id)} okText="Удалить" cancelText="Отмена"><Button danger disabled={busy}>Удалить</Button></Popconfirm>
@@ -70,7 +71,7 @@ export default function MazaPage() {
       {share && <Space orientation="vertical" style={{ width: '100%', alignItems: 'center' }}>
         <QRCode value={share.link} size={360} errorLevel="L" />
         <Typography.Text type="secondary">QR даёт доступ к сети. Передавайте его только владельцу устройства.</Typography.Text>
-        <Button onClick={() => void navigator.clipboard.writeText(share.link)}>Скопировать профиль MAZA</Button>
+        <Button onClick={() => void navigator.clipboard.writeText(share.link)}>{share.subscription ? 'Скопировать ссылку подписки' : 'Скопировать профиль MAZA'}</Button>
       </Space>}
     </Modal>
   </Space>;

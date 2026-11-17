@@ -66,7 +66,7 @@ func TestMazaNativeProvisionExportRevoke(t *testing.T) {
 		t.Fatal("foreign owner")
 	}
 	ib := mazaInbound(t)
-	if ib.Protocol != model.AmneziaWG || ib.Listen != "0.0.0.0" || ib.Port != mazaPort || !ib.ExcludeFromSub {
+	if ib.Protocol != model.AmneziaWG || ib.Listen != "0.0.0.0" || ib.Port != mazaPort || ib.ExcludeFromSub {
 		t.Fatal("not a native managed inbound")
 	}
 	if err := s.CreateWithEmail(1, "Рабочий Mac", "mac"); err != nil {
@@ -209,6 +209,41 @@ func TestMazaNativeEnableRemoveAndRetry(t *testing.T) {
 	}
 	if err := s.Initialize(1); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestMazaSubscriptionURLReusesPeerAndChecksOwner(t *testing.T) {
+	s := nativeMaza(t)
+	if err := s.CreateWithEmail(1, "Subscriptions", "native-sub-client"); err != nil {
+		t.Fatal(err)
+	}
+	c := s.state.Clients[0]
+	record, err := (&ClientService{}).GetRecordByEmail(nil, c.Email)
+	if err != nil || record.SubID == "" {
+		t.Fatal("client has no subscription ID", err)
+	}
+	if err := database.GetDB().Create(&model.Setting{Key: "subURI", Value: "https://sub.example.com/sub/"}).Error; err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		link, err := s.SubscriptionURL(1, c.ID, "127.0.0.1")
+		if err != nil || link != "https://sub.example.com/sub/"+record.SubID {
+			t.Fatal("incorrect public subscription URL", err)
+		}
+	}
+	if s.state.Clients[0].PrivateKey != c.PrivateKey {
+		t.Fatal("subscription rotated the peer")
+	}
+	for _, owner := range []int{0, 2} {
+		if _, err := s.SubscriptionURL(owner, c.ID, "sub.example.com"); err == nil {
+			t.Fatal("subscription leaked to another owner")
+		}
+	}
+	if err := s.Delete(1, c.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SubscriptionURL(1, c.ID, "sub.example.com"); err == nil {
+		t.Fatal("revoked client still has an export")
 	}
 }
 func TestMazaPendingActivationDoesNotExportCredentials(t *testing.T) {

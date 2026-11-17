@@ -73,6 +73,10 @@ func registerMaza(g *gin.RouterGroup) {
 		link, _, e := s.Export(session.GetLoginUser(c).Id, c.Param("id"))
 		jsonObj(c, gin.H{"link": link}, e)
 	})
+	m.GET("/clients/:id/subscription", func(c *gin.Context) {
+		link, e := s.SubscriptionURL(session.GetLoginUser(c).Id, c.Param("id"), resolveHost(c))
+		jsonObj(c, gin.H{"link": link}, e)
+	})
 	m.GET("/clients/:id/bundle", func(c *gin.Context) {
 		_, bundle, e := s.Export(session.GetLoginUser(c).Id, c.Param("id"))
 		if e != nil {

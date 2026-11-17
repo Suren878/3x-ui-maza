@@ -19,6 +19,7 @@ import (
 	"github.com/mhsanaei/3x-ui/v3/internal/util/maskcompat"
 	"github.com/mhsanaei/3x-ui/v3/internal/util/random"
 	wgutil "github.com/mhsanaei/3x-ui/v3/internal/util/wireguard"
+	"github.com/mhsanaei/3x-ui/v3/internal/web/service"
 )
 
 //go:embed default.json
@@ -144,7 +145,7 @@ func (s *SubJsonService) GetJson(subId string, host string, alwaysReturnArray bo
 		if len(clients) == 0 {
 			continue
 		}
-		if inbound.ExcludeFromSub {
+		if inbound.ExcludeFromSub || inbound.Tag == service.MazaInboundTag {
 			if countHiddenClients(clients, seenEmails) {
 				hasEnabledClient = true
 			}

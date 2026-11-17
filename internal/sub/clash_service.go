@@ -16,6 +16,7 @@ import (
 	"github.com/mhsanaei/3x-ui/v3/internal/amneziawg"
 	"github.com/mhsanaei/3x-ui/v3/internal/database/model"
 	wgutil "github.com/mhsanaei/3x-ui/v3/internal/util/wireguard"
+	"github.com/mhsanaei/3x-ui/v3/internal/web/service"
 )
 
 type SubClashService struct {
@@ -66,7 +67,7 @@ func (s *SubClashService) getClash(subId string, host string, legacy bool) (stri
 		if len(clients) == 0 {
 			continue
 		}
-		if inbound.ExcludeFromSub {
+		if inbound.ExcludeFromSub || inbound.Tag == service.MazaInboundTag {
 			if countHiddenClients(clients, seenEmails) {
 				hasEnabledClient = true
 			}

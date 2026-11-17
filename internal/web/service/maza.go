@@ -303,7 +303,7 @@ func (s *MazaService) apply() error {
 		}
 		inbound.Tag, inbound.Remark = mazaTag, remark
 		inbound.Protocol, inbound.Listen, inbound.Port, inbound.Enable = model.AmneziaWG, "0.0.0.0", mazaPort, !s.state.Disabled
-		inbound.ExcludeFromSub = true
+		inbound.ExcludeFromSub = false
 		inbound.Settings, inbound.StreamSettings, inbound.Sniffing = string(settings), "{}", "{\"enabled\":false}"
 		inboundSvc := &InboundService{}
 		if isNew {
@@ -364,6 +364,20 @@ func (s *MazaService) apply() error {
 			}
 			if _, err := clientSvc.AddInboundClient(inboundSvc, &model.Inbound{Id: inbound.Id, Protocol: model.AmneziaWG, Settings: string(data)}); err != nil {
 				return err
+			}
+		}
+		// The low-level inbound API does not mint a subscription ID for the
+		// first peer. Repair only missing IDs through the normal client API;
+		// existing subscription tokens and peer keys remain unchanged.
+		for _, c := range clients {
+			record, err := clientSvc.GetRecordByEmail(nil, c.Email)
+			if err != nil {
+				return err
+			}
+			if record.SubID == "" {
+				if _, err := clientSvc.Update(inboundSvc, record.Id, *record.ToClient(), record.LimitHwid); err != nil {
+					return err
+				}
 			}
 		}
 		if err := s.cleanupRevoked(); err != nil {
@@ -691,6 +705,43 @@ func (s *MazaService) ExportByEmail(user int, email string) (string, string, err
 	}
 	link, _, err := s.Export(user, id)
 	return id, link, err
+}
+
+// SubscriptionURL exposes the existing client's subscription, without issuing
+// new credentials or changing the peer when the URL is refreshed.
+func (s *MazaService) SubscriptionURL(user int, id, host string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if user <= 0 || !s.allowed(user) || s.pending {
+		return "", errors.New("subscription unavailable")
+	}
+	for _, c := range s.state.Clients {
+		if c.ID != id {
+			continue
+		}
+		settings := &SettingService{}
+		enabled, err := settings.GetSubEnable()
+		if err != nil || !enabled {
+			return "", errors.New("subscriptions are disabled")
+		}
+		record, err := (&ClientService{}).GetRecordByEmail(nil, mazaClientEmail(c))
+		if err != nil || record.SubID == "" {
+			return "", errors.New("subscription not found")
+		}
+		uri, err := settings.GetSubURI()
+		if err != nil {
+			return "", err
+		}
+		if uri == "" {
+			path, err := settings.GetSubPath()
+			if err != nil {
+				return "", err
+			}
+			uri = settings.BuildSubURIBase(host) + path
+		}
+		return strings.TrimRight(uri, "/") + "/" + url.PathEscape(record.SubID), nil
+	}
+	return "", errors.New("client not found")
 }
 
 func (s *MazaService) Export(user int, id string) (string, []byte, error) {
