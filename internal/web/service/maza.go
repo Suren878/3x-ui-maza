@@ -260,6 +260,9 @@ func (s *MazaService) apply() error {
 		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
+		if err := s.cleanupRevoked(); err != nil {
+			return err
+		}
 		if s.activate != nil {
 			if err := s.activate(); err != nil {
 				return err
@@ -363,6 +366,9 @@ func (s *MazaService) apply() error {
 				return err
 			}
 		}
+		if err := s.cleanupRevoked(); err != nil {
+			return err
+		}
 		if s.activate != nil {
 			if err := s.activate(); err != nil {
 				return err
@@ -462,6 +468,10 @@ func (s *MazaService) Remove(user int) error {
 		return errors.New("previous change is still being applied")
 	}
 	old := s.state
+	s.state.Revoked = append([]string{}, s.state.Revoked...)
+	for _, c := range s.state.Clients {
+		s.state.Revoked = append(s.state.Revoked, mazaClientEmail(c))
+	}
 	s.state.Deleting, s.state.Clients = true, []MazaClient{}
 	if err := s.save(); err != nil {
 		s.state = old
@@ -729,4 +739,33 @@ func (s *MazaService) IsManagedClient(email string) bool {
 		}
 	}
 	return false
+}
+
+// Remove only orphan records owned by an explicit MAZA revocation. Preserve any
+// unrelated attachments or external links the administrator added separately.
+func (s *MazaService) cleanupRevoked() error {
+	clients := &ClientService{}
+	for _, email := range s.state.Revoked {
+		rec, err := clients.GetRecordByEmail(nil, email)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		ids, err := clients.GetInboundIdsForRecord(rec.Id)
+		if err != nil {
+			return err
+		}
+		links, err := clients.GetExternalLinksForRecord(rec.Id)
+		if err != nil {
+			return err
+		}
+		if len(ids) == 0 && len(links) == 0 {
+			if _, err := clients.DeleteByEmail(&InboundService{}, email, false); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

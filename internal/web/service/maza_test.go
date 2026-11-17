@@ -263,3 +263,31 @@ func TestMazaRejectsInvalidNames(t *testing.T) {
 		}
 	}
 }
+
+func TestMazaRevocationRemovesOrphansAndAllowsNameReuse(t *testing.T) {
+	s := nativeMaza(t)
+	for i := 0; i < 2; i++ {
+		if err := s.CreateWithEmail(1, "Reusable", "reuse"); err != nil {
+			t.Fatal(err)
+		}
+		id := s.state.Clients[0].ID
+		if err := s.Delete(1, id); err != nil {
+			t.Fatal(err)
+		}
+		var count int64
+		if err := database.GetDB().Model(&model.ClientRecord{}).Where("email = ?", "reuse").Count(&count).Error; err != nil || count != 0 {
+			t.Fatal("revocation left an orphan", err)
+		}
+	}
+	if err := s.CreateWithEmail(1, "Reusable", "reuse"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Remove(1); err != nil {
+		t.Fatal(err)
+	}
+	var count int64
+	database.GetDB().Model(&model.ClientRecord{}).Where("email = ?", "reuse").Count(&count)
+	if count != 0 {
+		t.Fatal("inbound removal left an orphan")
+	}
+}

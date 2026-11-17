@@ -55,6 +55,12 @@ elif a.mode in ['delete','disable','enable']:
  print('PASS: temporary client '+a.mode)
 else:
  assert not status['clients'], 'isolated smoke requires empty managed state'
+ # Clean only orphan records left by an earlier run of this isolated fixture.
+ for email in ['maza-smoke-a','maza-smoke-b']:
+  code,_,raw=req('/panel/api/clients/get/'+email);old=json.loads(raw)
+  if old.get('success'):
+   assert not old['obj']['inboundIds'], 'test identity still attached elsewhere'
+   api('/panel/api/clients/del/'+email,{})
  # Use a fresh anonymous opener to avoid reusing the operator cookie jar.
  anon=urllib.request.Request(base+route,headers={'X-Requested-With':'XMLHttpRequest'})
  try: urllib.request.urlopen(anon);raise RuntimeError('anonymous access accepted')
@@ -71,6 +77,8 @@ else:
   api(route+'/'+c['id']+'/enable',{'enabled':False});probe(False)
   api(route+'/'+c['id']+'/enable',{'enabled':True});probe(True)
   delete(c);probe(False)
+  api(route,{'name':'Smoke A','email':'maza-smoke-a'})
+  print('PASS: revoked client name can be reused')
  finally:
   for c in api(route)['clients']:
    if c['name'] in ['Smoke A','Smoke B']:delete(c)
