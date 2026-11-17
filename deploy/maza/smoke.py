@@ -65,7 +65,7 @@ else:
   clients=api(route)['clients'];assert len(clients)==2 and clients[0]['address']!=clients[1]['address']
   assert all(set(c)=={'id','name','email','address','created','enabled'} for c in clients)
   c=next(c for c in clients if c['name']=='Smoke A');export(c);probe(True)
-  for path,body in [('/panel/clients/update/'+c['email'],{'enable':False}),('/panel/clients/del/'+c['email'],{})]:
+  for path,body in [('/panel/api/clients/update/'+c['email'],{'enable':False}),('/panel/api/clients/del/'+c['email'],{})]:
    code,_,raw=req(path,body);assert code==200 and not json.loads(raw)['success'], 'generic mutation bypassed managed state'
   assert len(api(route)['clients'])==2
   api(route+'/'+c['id']+'/enable',{'enabled':False});probe(False)
