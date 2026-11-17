@@ -54,8 +54,13 @@ func run() error {
 	if json.Unmarshal(data, &p) != nil || p.Version != 2 || core.ValidateMazaParameters(p.Maza) != nil {
 		return fmt.Errorf("invalid native profile")
 	}
-	if _, _, err := net.SplitHostPort(os.Args[2]); err != nil {
+	host, _, err := net.SplitHostPort(os.Args[2])
+	if err != nil {
 		return fmt.Errorf("invalid endpoint")
+	}
+	listen := ""
+	if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
+		listen = "127.0.0.1"
 	}
 	params := map[string]any{}
 	for k, v := range p.Maza {
@@ -80,7 +85,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	dev, err := amneziawgnet.NewDevice(amneziawg.Instance{Tag: "maza-probe", InterfaceName: "maza-probe", Listen: "127.0.0.1", PrivateKey: p.Wireguard.Private, Address: []string{p.Wireguard.Address}, MTU: mtu, Obfuscation: o, Peers: []amneziawg.Peer{{Email: "probe", PublicKey: p.Wireguard.Public, AllowedIPs: []string{"0.0.0.0/0"}}}}, amneziawgnet.DeviceOptions{HeaderProtectionKey: o.HeaderProtectionKey, ContentPaddingAddition: o.ContentPaddingAddition, RekeyAfterTime: o.RekeyAfterTime, RejectAfterTime: o.RejectAfterTime, RekeyTimeout: o.RekeyTimeout, KeepaliveTimeout: o.KeepaliveTimeout, MaxHandshakeAttempts: o.MaxHandshakeAttempts, RandomTrailers: o.RandomTrailers, DisableCookies: o.DisableCookies})
+	dev, err := amneziawgnet.NewDevice(amneziawg.Instance{Tag: "maza-probe", InterfaceName: "maza-probe", Listen: listen, PrivateKey: p.Wireguard.Private, Address: []string{p.Wireguard.Address}, MTU: mtu, Obfuscation: o, Peers: []amneziawg.Peer{{Email: "probe", PublicKey: p.Wireguard.Public, AllowedIPs: []string{"0.0.0.0/0"}}}}, amneziawgnet.DeviceOptions{HeaderProtectionKey: o.HeaderProtectionKey, ContentPaddingAddition: o.ContentPaddingAddition, RekeyAfterTime: o.RekeyAfterTime, RejectAfterTime: o.RejectAfterTime, RekeyTimeout: o.RekeyTimeout, KeepaliveTimeout: o.KeepaliveTimeout, MaxHandshakeAttempts: o.MaxHandshakeAttempts, RandomTrailers: o.RandomTrailers, DisableCookies: o.DisableCookies})
 	if err != nil {
 		return fmt.Errorf("core initialization failed: %w", err)
 	}
@@ -116,11 +121,26 @@ func checkEgress(dev *amneziawgnet.Device, expectedIP string) error {
 	address := func(port uint16) tcpip.FullAddress {
 		return tcpip.FullAddress{NIC: 1, Addr: tcpip.AddrFrom4([4]byte{1, 1, 1, 1}), Port: port}
 	}
+	resolver := &net.Resolver{PreferGo: true, Dial: func(ctx context.Context, network, _ string) (net.Conn, error) {
+		remote := address(53)
+		if network == "tcp" {
+			return gonet.DialContextTCP(ctx, dev.Stack, remote, ipv4.ProtocolNumber)
+		}
+		return gonet.DialUDP(dev.Stack, nil, &remote, ipv4.ProtocolNumber)
+	}}
 	transport := &http.Transport{DialContext: func(ctx context.Context, network, target string) (net.Conn, error) {
-		if network != "tcp" || target != "1.1.1.1:443" {
+		if network != "tcp" || (target != "1.1.1.1:443" && target != "speed.cloudflare.com:443") {
 			return nil, fmt.Errorf("unexpected test destination")
 		}
-		return gonet.DialContextTCP(ctx, dev.Stack, address(443), ipv4.ProtocolNumber)
+		remote := address(443)
+		if target == "speed.cloudflare.com:443" {
+			ips, err := resolver.LookupNetIP(ctx, "ip4", "speed.cloudflare.com")
+			if err != nil || len(ips) == 0 {
+				return nil, fmt.Errorf("download DNS failed: %v", err)
+			}
+			remote.Addr = tcpip.AddrFrom4(ips[0].As4())
+		}
+		return gonet.DialContextTCP(ctx, dev.Stack, remote, ipv4.ProtocolNumber)
 	}}
 	defer transport.CloseIdleConnections()
 	client := &http.Client{Transport: transport, Timeout: 20 * time.Second,
@@ -160,5 +180,16 @@ func checkEgress(dev *amneziawgnet.Device, expectedIP string) error {
 		return fmt.Errorf("MAZA UDP DNS response invalid")
 	}
 	fmt.Println("PASS: MAZA UDP DNS through server egress")
+	started := time.Now()
+	response, err = client.Get("https://speed.cloudflare.com/__down?bytes=1048576")
+	if err != nil {
+		return fmt.Errorf("MAZA download: %w", err)
+	}
+	defer response.Body.Close()
+	nbytes, err := io.Copy(io.Discard, io.LimitReader(response.Body, 1048577))
+	if err != nil || response.StatusCode != http.StatusOK || nbytes != 1048576 {
+		return fmt.Errorf("MAZA download failed: %d bytes, %v", nbytes, err)
+	}
+	fmt.Printf("PASS: Go native MAZA 1 MiB download in %.2fs\n", time.Since(started).Seconds())
 	return nil
 }
