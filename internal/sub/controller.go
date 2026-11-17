@@ -476,7 +476,6 @@ func dedupeEmails(emails []string) []string {
 // subs handles HTTP requests for subscription links, returning either HTML page or base64-encoded subscription data.
 func (a *SUBController) subs(c *gin.Context) {
 	userAgent := c.GetHeader("User-Agent")
-	airClient := isAirClient(userAgent)
 	if a.maybeServeSubInfo(c) {
 		logSubscriptionRoute(userAgent, "info")
 		return
@@ -488,12 +487,12 @@ func (a *SUBController) subs(c *gin.Context) {
 	if !a.enforceHwid(c) {
 		return
 	}
-	if !airClient && shouldAutoServeClash(a.subClashAutoDetect, a.clashEnabled, false, userAgent, a.clashUserAgent) && a.serveClashBody(c, false, false) {
+	if shouldAutoServeClash(a.subClashAutoDetect, a.clashEnabled, false, userAgent, a.clashUserAgent) && a.serveClashBody(c, false, false) {
 		a.recordSubscriptionFetch(c)
 		logSubscriptionRoute(userAgent, "clash")
 		return
 	}
-	if !airClient && shouldAutoServeJson(a.jsonAutoDetect, a.jsonEnabled, false, userAgent, a.jsonUserAgent) && a.serveJsonBody(c, true, "application/json; charset=utf-8", false) {
+	if shouldAutoServeJson(a.jsonAutoDetect, a.jsonEnabled, false, userAgent, a.jsonUserAgent) && a.serveJsonBody(c, true, "application/json; charset=utf-8", false) {
 		a.recordSubscriptionFetch(c)
 		logSubscriptionRoute(userAgent, "json")
 		return
@@ -538,13 +537,6 @@ func (a *SUBController) subs(c *gin.Context) {
 		}
 		a.recordSubscriptionFetch(c)
 	}
-}
-
-// Include the old AIRClient identity so existing installations also receive
-// share links rather than the sing-box JSON their importer cannot consume.
-func isAirClient(userAgent string) bool {
-	value := strings.ToLower(strings.TrimSpace(userAgent))
-	return strings.HasPrefix(value, "airclient/") || strings.HasSuffix(value, " air client")
 }
 
 func (a *SUBController) recordSubscriptionFetch(c *gin.Context) {

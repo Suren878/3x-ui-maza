@@ -76,7 +76,7 @@ export default function AttachClientsModal({
   const targetOptions = useMemo(() => {
     if (!source) return [];
     return (dbInbounds || [])
-      .filter((ib) => ib.id !== source.id && ib.tag !== 'maza-managed' && isInboundMultiUser(ib))
+      .filter((ib) => ib.id !== source.id && isInboundMultiUser(ib))
       .map((ib) => ({ value: ib.id, label: formatInboundLabel(ib.tag, ib.remark) }));
   }, [dbInbounds, source]);
 

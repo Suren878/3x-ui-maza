@@ -118,6 +118,3 @@ require (
 	layeh.com/gopher-luar v1.0.11 // indirect
 	lukechampine.com/blake3 v1.4.1 // indirect
 )
-
-// MAZA: compile our pinned, reviewed native WireGuard fork.
-replace github.com/amnezia-vpn/amneziawg-go/v3 => ./maza/core-go

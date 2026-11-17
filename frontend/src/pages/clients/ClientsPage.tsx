@@ -1,4 +1,3 @@
-import { HttpUtil } from '@/utils';
 import { lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useLocation, useSearchParams } from 'react-router';
@@ -564,18 +563,6 @@ export default function ClientsPage() {
     return out;
   }, [inbounds]);
 
-  const isMazaClient = useCallback((row: ClientRecord) =>
-    row.inboundIds?.some((id) => inboundsById[id]?.tag === 'maza-managed') ?? false,
-  [inboundsById]);
-  const mazaAction = useCallback(async (row: ClientRecord, action: 'enable' | 'delete', enabled?: boolean) => {
-    const shared = await HttpUtil.get<{ id: string }>(`/panel/maza/api/by-email/${encodeURIComponent(row.email)}/share`);
-    if (!shared.success || !shared.obj) return shared;
-    const result = await HttpUtil.post(`/panel/maza/api/clients/${shared.obj.id}/${action}`,
-      action === 'enable' ? { enabled } : {}, { headers: { 'Content-Type': 'application/json' } });
-    await refresh();
-    return result;
-  }, [refresh]);
-
   const protocolOptions = useMemo(() => {
     const values = new Set<string>(
       (inbounds || []).map((i) => i.protocol).filter((x): x is string => !!x),
@@ -687,7 +674,7 @@ export default function ClientsPage() {
   async function onToggleEnable(row: ClientRecord, next: boolean) {
     setTogglingEmail(row.email);
     try {
-      const msg = isMazaClient(row) ? await mazaAction(row, 'enable', next) : await setEnable(row, next);
+      const msg = await setEnable(row, next);
       if (!msg?.success) {
         messageApi.error(msg?.msg || t('somethingWentWrong'));
       }
@@ -709,10 +696,6 @@ export default function ClientsPage() {
     async (email: string) => {
       const row = rowsByEmail.current.get(email);
       if (!row) return;
-      if (isMazaClient(row)) {
-        window.location.assign(`${(window.X_UI_BASE_PATH || '/').replace(/\/$/, '')}/panel/maza`);
-        return;
-      }
       setFormMode('edit');
       // Paged list omits per-client secrets to keep the row payload tiny;
       // edit needs them, so fetch the full record first.
@@ -725,7 +708,7 @@ export default function ClientsPage() {
       setEditingTunnelAllowedIPs(full?.tunnelAllowedIPs ?? {});
       setFormOpen(true);
     },
-    [hydrate, isMazaClient],
+    [hydrate],
   );
 
   const onDelete = useCallback(
@@ -739,12 +722,12 @@ export default function ClientsPage() {
         okType: 'danger',
         cancelText: t('cancel'),
         onOk: async () => {
-          const msg = isMazaClient(row) ? await mazaAction(row, 'delete') : await remove(row.email);
+          const msg = await remove(row.email);
           if (msg?.success) messageApi.success(t('pages.clients.toasts.deleted'));
         },
       });
     },
-    [modal, t, remove, messageApi, isMazaClient, mazaAction],
+    [modal, t, remove, messageApi],
   );
 
   const onResetTraffic = useCallback(
@@ -777,7 +760,7 @@ export default function ClientsPage() {
       setViewingTunnelAllowedIPs(full?.tunnelAllowedIPs ?? {});
       setInfoOpen(true);
     },
-    [hydrate, isMazaClient],
+    [hydrate],
   );
 
   const onShowQr = useCallback(
@@ -789,7 +772,7 @@ export default function ClientsPage() {
       setViewingTunnelAllowedIPs(full?.tunnelAllowedIPs ?? {});
       setQrOpen(true);
     },
-    [hydrate, isMazaClient],
+    [hydrate],
   );
 
   const [refreshing, setRefreshing] = useState(false);
@@ -1270,13 +1253,10 @@ export default function ClientsPage() {
 
   const rowSelection = {
     selectedRowKeys,
-    getCheckboxProps: (row: ClientRecord) => ({ disabled: isMazaClient(row), title: isMazaClient(row) ? 'Управляйте MAZA отдельно' : undefined }),
     onChange: (keys: React.Key[]) => setSelectedRowKeys(keys as string[]),
   };
 
   function toggleSelect(email: string, checked: boolean) {
-    const row = rowsByEmail.current.get(email);
-    if (row && isMazaClient(row)) return;
     setSelectedRowKeys((prev) => {
       const next = new Set(prev);
       if (checked) next.add(email);
@@ -1286,7 +1266,7 @@ export default function ClientsPage() {
   }
 
   function selectAll(checked: boolean) {
-    setSelectedRowKeys(checked ? filteredClients.filter((c) => !isMazaClient(c)).map((c) => c.email) : []);
+    setSelectedRowKeys(checked ? filteredClients.map((c) => c.email) : []);
   }
 
   const allSelected =
@@ -1794,7 +1774,6 @@ export default function ClientsPage() {
                                 >
                                   <div className="card-head">
                                     <Checkbox
-                                      disabled={isMazaClient(row)}
                                       checked={selectedRowKeys.includes(row.email)}
                                       onChange={(e) => toggleSelect(row.email, e.target.checked)}
                                     />
@@ -1933,7 +1912,6 @@ export default function ClientsPage() {
             tgBotEnable={tgBotEnable}
             groups={allGroups}
             save={onSave}
-            onMazaCreated={() => { void refresh(); }}
             resetTraffic={resetTraffic}
             onOpenChange={setFormOpen}
           />

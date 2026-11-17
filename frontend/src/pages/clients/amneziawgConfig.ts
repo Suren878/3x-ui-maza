@@ -28,7 +28,7 @@ export function findAmneziaWGInbounds(
 ): InboundOption[] {
   return (client?.inboundIds || [])
     .map((id) => inboundsById?.[id])
-    .filter((ib): ib is InboundOption => ib?.protocol === 'amneziawg' && ib.tag !== 'maza-managed');
+    .filter((ib): ib is InboundOption => ib?.protocol === 'amneziawg');
 }
 
 // h4Line renders one H magic-header line, matching the Go backend's

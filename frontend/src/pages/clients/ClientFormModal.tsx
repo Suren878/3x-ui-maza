@@ -2,7 +2,6 @@ import { useEffect, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AutoComplete,
-  Alert,
   Button,
   Col,
   Form,
@@ -32,7 +31,6 @@ import type { Dayjs } from 'dayjs';
 import { Controller, FormProvider, useForm, useWatch, useFieldArray } from 'react-hook-form';
 
 import { HttpUtil, IntlUtil, RandomUtil, Wireguard } from '@/utils';
-import { createMazaClient } from '@/pages/maza/createClient';
 import { formatInboundLabel } from '@/lib/inbounds/label';
 import { generateMtprotoSecret } from '@/lib/xray/inbound-defaults';
 import { normalizeClientIps, type ClientIpInfo } from '@/lib/clients/ip-log';
@@ -119,7 +117,6 @@ interface SaveCreatePayload {
 
 interface ClientFormModalProps {
   open: boolean;
-  onMazaCreated?: () => void;
   mode: Mode;
   client: ClientRecord | null;
   inbounds: InboundOption[];
@@ -265,7 +262,6 @@ export default function ClientFormModal({
   save,
   resetTraffic,
   onOpenChange,
-  onMazaCreated,
 }: ClientFormModalProps) {
   const { t } = useTranslation();
   const uid = useId();
@@ -274,7 +270,6 @@ export default function ClientFormModal({
 
   const methods = useForm<Values>({ defaultValues: EMPTY });
   const inboundIds = useWatch({ control: methods.control, name: 'inboundIds' });
-  const mazaSelected = (inboundIds || []).some((id) => inbounds?.some((ib) => ib.id === id && ib.tag === 'maza-managed'));
   const delayedStart = useWatch({ control: methods.control, name: 'delayedStart' });
   const delayedDays = useWatch({ control: methods.control, name: 'delayedDays' });
   const expiryDate = useWatch({ control: methods.control, name: 'expiryDate' });
@@ -719,21 +714,6 @@ export default function ClientFormModal({
 
   async function onSubmit() {
     const values = methods.getValues();
-    if (!isEdit && mazaSelected) {
-      if ((values.inboundIds || []).length !== 1) { messageApi.error('Создайте клиента MAZA отдельно от других подключений.'); return; }
-      const name = values.email.trim();
-      if (!name) { messageApi.error('Введите имя клиента.'); return; }
-      setSubmitting(true);
-      try {
-        const result = await createMazaClient(name, name);
-        if (result.success) {
-          if (result.pending) messageApi.warning(result.msg);
-          onMazaCreated?.();
-          close();
-        } else messageApi.error(result.msg);
-      } finally { setSubmitting(false); }
-      return;
-    }
     const unchangedLegacyKeepAlive =
       isEdit &&
       typeof client?.keepAlive === 'number' &&
@@ -958,15 +938,7 @@ export default function ClientFormModal({
       >
         <FormProvider {...methods}>
           <Form layout="vertical">
-            {!isEdit && mazaSelected ? <>
-              <Alert type="info" showIcon title="Клиент MAZA" description="Подписка, прямая ссылка и QR появятся в карточке клиента. Подписку импортируйте в AIRClient. Лимиты и другие подключения для MAZA в этой форме пока не поддерживаются." />
-              <Form.Item label={t('pages.clients.email')} required>
-                <Input value={email} onChange={(e) => methods.setValue('email', e.target.value)} />
-              </Form.Item>
-              <Form.Item label={t('pages.clients.attachedInbounds')} required>
-                <Select mode="multiple" value={inboundIds} onChange={handleInboundChange} options={inboundOptions} />
-              </Form.Item>
-            </> : <Tabs
+            <Tabs
               defaultActiveKey="basic"
               items={[
                 {
@@ -1737,7 +1709,7 @@ export default function ClientFormModal({
                   ),
                 },
               ]}
-            />}
+            />
           </Form>
         </FormProvider>
       </Modal>

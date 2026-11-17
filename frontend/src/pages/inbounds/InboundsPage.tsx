@@ -49,7 +49,6 @@ import { useInbounds } from './useInbounds';
 import { InboundList } from './list';
 import { LazyMount } from '@/components/utility';
 const InboundFormModal = lazy(() => import('./form/InboundFormModal'));
-const MazaEditModal = lazy(() => import('./MazaEditModal'));
 const CloneInboundModal = lazy(() => import('./CloneInboundModal'));
 const InboundInfoModal = lazy(() => import('./info/InboundInfoModal'));
 const AttachClientsModal = lazy(() => import('./clients/AttachClientsModal'));
@@ -161,7 +160,6 @@ export default function InboundsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<'add' | 'edit'>('add');
   const [formDbInbound, setFormDbInbound] = useState<DBInbound | null>(null);
-  const [mazaEditing, setMazaEditing] = useState<DBInbound | null>(null);
 
   const [infoOpen, setInfoOpen] = useState(false);
   const [infoDbInbound, setInfoDbInbound] = useState<DBInbound | null>(null);
@@ -628,20 +626,6 @@ export default function InboundsPage() {
 
   const onRowAction = useCallback(
     async ({ key, dbInbound }: { key: RowAction; dbInbound: DBInbound }) => {
-      if (dbInbound.tag === 'maza-managed') {
-        if (key === 'edit') setMazaEditing(dbInbound);
-        if (key === 'delete') modal.confirm({
-          title: 'Удалить подключение MAZA?',
-          content: 'Все клиенты MAZA будут отозваны, их подключения перестанут работать.',
-          okText: t('delete'), okType: 'danger', cancelText: t('cancel'),
-          onOk: async () => {
-            const msg = await HttpUtil.post('/panel/maza/api/remove');
-            if (msg.success) await refresh();
-            else throw new Error(msg.msg || 'Не удалось удалить MAZA');
-          },
-        });
-        return;
-      }
       // Actions that touch per-client secrets (uuid, password, flow, ...) need
       // the full payload that the slim list view does not ship. Hydrate first
       // and then operate on the rehydrated record.
@@ -723,9 +707,6 @@ export default function InboundsPage() {
       confirmDelAllClients,
       confirmClone,
       messageApi,
-      modal,
-      refresh,
-      t,
     ],
   );
 
@@ -818,7 +799,6 @@ export default function InboundsPage() {
                       hasActiveNode={showNodeInfo}
                       hosts={hosts}
                       onAddInbound={onAddInbound}
-                      onRefresh={refresh}
                       onGeneralAction={onGeneralAction}
                       onRowAction={({ key, dbInbound }) =>
                         onRowAction({ key, dbInbound: dbInbound as unknown as DBInbound })
@@ -843,9 +823,6 @@ export default function InboundsPage() {
             availableNodes={nodesList}
             availableNodesFetched={nodesFetched}
           />
-        </LazyMount>
-        <LazyMount when={!!mazaEditing}>
-          <MazaEditModal record={mazaEditing} onClose={() => setMazaEditing(null)} onSaved={refresh} />
         </LazyMount>
         <LazyMount when={infoOpen}>
           <InboundInfoModal

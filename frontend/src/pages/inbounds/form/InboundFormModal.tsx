@@ -102,7 +102,6 @@ import type { DBInbound } from '@/models/dbinbound';
 import type { NodeRecord } from '@/api/queries/useNodesQuery';
 
 const PROTOCOL_OPTIONS = Object.values(Protocols).map((p) => ({ value: p, label: p }));
-const ADD_PROTOCOL_OPTIONS = [...PROTOCOL_OPTIONS, { value: 'maza', label: 'MAZA' }];
 const SHARE_ADDR_STRATEGIES = ['node', 'listen', 'custom'] as const;
 const SHARE_ADDR_HOSTNAME_RE =
   /^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*$/;
@@ -283,7 +282,6 @@ export default function InboundFormModal({
 
   const selectableNodes = (availableNodes || []).filter((n) => n.enable);
   const protocol = (useWatch({ control, name: 'protocol' }) ?? '') as string;
-  const isMaza = mode === 'add' && protocol === 'maza';
   const isNodeEligible = !!NODE_ELIGIBLE_PROTOCOLS[protocol];
   /*
    * The `node` share-address strategy only means something when the inbound can
@@ -668,21 +666,6 @@ export default function InboundFormModal({
     }
   };
 
-  const createMaza = async () => {
-    if (saving) return;
-    setSaving(true);
-    try {
-      const result = await HttpUtil.post('/panel/maza/api/initialize');
-      if (result?.success) {
-        onSaved();
-        onClose();
-        messageApi.success('MAZA создан. Добавьте клиентов в разделе MAZA.');
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
-
   /*
    * Field errors render inline, but every tab is force-rendered, so an error on
    * a hidden tab looks like a dead Save button — jump to it and say what broke.
@@ -730,7 +713,7 @@ export default function InboundFormModal({
       )}
 
       <FormField name="protocol" label={t('pages.inbounds.protocol')}>
-        <NativeSelect id="protocol" disabled={mode === 'edit'} options={mode === 'add' ? ADD_PROTOCOL_OPTIONS : PROTOCOL_OPTIONS} />
+        <NativeSelect id="protocol" disabled={mode === 'edit'} options={PROTOCOL_OPTIONS} />
       </FormField>
 
       <FormField
@@ -1241,7 +1224,7 @@ export default function InboundFormModal({
         confirmLoading={saving}
         mask={{ closable: false }}
         width={780}
-        onOk={isMaza ? createMaza : submit}
+        onOk={submit}
         onCancel={onClose}
         destroyOnHidden
         modalRender={(content) => (
@@ -1257,14 +1240,7 @@ export default function InboundFormModal({
             wrapperCol={{ sm: { span: 14 } }}
             labelWrap
           >
-            {isMaza ? (
-              <>
-                <FormField name="protocol" label={t('pages.inbounds.protocol')}>
-                  <NativeSelect id="protocol" options={ADD_PROTOCOL_OPTIONS} />
-                </FormField>
-                <Alert type="info" showIcon title="MAZA" description="На сервере создаётся одно подключение MAZA. Клиентов и их QR-коды можно добавлять в разделе MAZA. Адрес и порт задаются настройками сервера." />
-              </>
-            ) : <Tabs
+            <Tabs
               activeKey={activeTab}
               onChange={setActiveTab}
               items={[
@@ -1337,7 +1313,7 @@ export default function InboundFormModal({
                   forceRender: true,
                 },
               ]}
-            />}
+            />
           </Form>
         </FormProvider>
       </Modal>

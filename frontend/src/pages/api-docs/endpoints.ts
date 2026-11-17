@@ -315,11 +315,6 @@ export const sections: readonly Section[] = [
       },
       {
         method: 'POST',
-        path: '/panel/maza/api/initialize',
-        summary: 'Create the single managed MAZA transport without creating a client. Requires the panel session and CSRF token.',
-      },
-      {
-        method: 'POST',
         path: '/panel/api/inbounds/del/:id',
         summary: 'Delete an inbound by ID. Also removes its associated client stats rows.',
         params: [{ name: 'id', in: 'path', type: 'number', desc: 'Inbound ID.' }],

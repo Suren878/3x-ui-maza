@@ -17,7 +17,6 @@ import {
 
 const IndexPage = lazy(() => import('@/pages/index/IndexPage'));
 const InboundsPage = lazy(() => import('@/pages/inbounds/InboundsPage'));
-const MazaPage = lazy(() => import('@/pages/maza/MazaPage'));
 const ClientsPage = lazy(() => import('@/pages/clients/ClientsPage'));
 const GroupsPage = lazy(() => import('@/pages/groups/GroupsPage'));
 const NodesPage = lazy(() => import('@/pages/nodes/NodesPage'));
@@ -40,7 +39,6 @@ export const PANEL_ROUTES: PanelRoute[] = [
   { path: '/', titleKey: 'menu.dashboard', icon: DashboardOutlined, component: IndexPage },
   { path: '/inbounds', titleKey: 'menu.inbounds', icon: ImportOutlined, component: InboundsPage },
   { path: '/clients', titleKey: 'menu.clients', icon: TeamOutlined, component: ClientsPage },
-  { path: '/maza', titleKey: 'menu.maza', icon: ImportOutlined, component: MazaPage },
   { path: '/groups', titleKey: 'menu.groups', icon: TagsOutlined, component: GroupsPage },
   { path: '/nodes', titleKey: 'menu.nodes', icon: ClusterOutlined, component: NodesPage },
   { path: '/hosts', titleKey: 'menu.hosts', icon: GlobalOutlined, component: HostsPage },

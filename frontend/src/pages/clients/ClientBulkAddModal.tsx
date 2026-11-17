@@ -142,7 +142,6 @@ export default function ClientBulkAddModal({
     () =>
       (inbounds || [])
         .filter((ib) => MULTI_CLIENT_PROTOCOLS.has(ib.protocol || ''))
-        .filter((ib) => ib.tag !== 'maza-managed')
         .map((ib) => ({
           label: formatInboundLabel(ib.tag, ib.remark),
           value: ib.id,

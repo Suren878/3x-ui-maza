@@ -28,7 +28,6 @@ export interface DBInboundRecord extends ProtocolFlags {
   subSortIndex: number;
   port: number;
   protocol: string;
-  tag?: string;
   up: number;
   down: number;
   total: number;
@@ -81,7 +80,6 @@ export interface InboundListProps {
   hasActiveNode: boolean;
   hosts: HostRecord[];
   onAddInbound: () => void;
-  onRefresh: () => void;
   onGeneralAction: (key: GeneralAction) => void;
   onRowAction: (action: { key: RowAction; dbInbound: DBInboundRecord }) => void;
   onBulkDelete: (ids: number[]) => Promise<boolean>;

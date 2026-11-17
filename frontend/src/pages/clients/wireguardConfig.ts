@@ -21,7 +21,7 @@ export function findWireguardInbounds(
 ): InboundOption[] {
   return (client?.inboundIds || [])
     .map((id) => inboundsById?.[id])
-    .filter((ib): ib is InboundOption => ib?.protocol === 'wireguard' && ib.tag !== 'maza-managed');
+    .filter((ib): ib is InboundOption => ib?.protocol === 'wireguard');
 }
 
 export function buildWireguardClientConfig(
